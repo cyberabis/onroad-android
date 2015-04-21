@@ -11,7 +11,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="@string/username_hint"
-        android:layout_marginTop="15dip"
+        android:layout_marginTop="30dip"
         android:textColor="#FFFFFF"
         android:textColorHint="#C0C0C0"
         android:backgroundTint="#FFFFFF" />
@@ -34,7 +34,7 @@
         android:layout_alignParentRight="true"
         android:text="@string/login_button"
         android:id="@+id/login"
-        android:layout_marginTop="15dip"
+        android:layout_marginTop="30dip"
         android:background="#FFFFFF" />
 
 </RelativeLayout>

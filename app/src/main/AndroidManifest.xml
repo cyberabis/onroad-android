@@ -20,6 +20,10 @@
             android:name=".LoginActivity"
             android:label="@string/title_activity_login" >
         </activity>
+        <activity
+            android:name=".ControlActivity"
+            android:label="@string/title_activity_control" >
+        </activity>
     </application>
 
 </manifest>

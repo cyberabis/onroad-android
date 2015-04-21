@@ -1,0 +1,112 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools" android:layout_width="match_parent"
+    android:layout_height="match_parent" android:paddingLeft="@dimen/activity_horizontal_margin"
+    android:paddingRight="@dimen/activity_horizontal_margin"
+    android:paddingTop="@dimen/activity_vertical_margin"
+    android:paddingBottom="@dimen/activity_vertical_margin"
+    tools:context="io.logbase.onroad.ControlActivity"
+    android:background="#4668A6">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:text="@string/control_header"
+        android:id="@+id/control_header"
+        android:layout_alignParentTop="true"
+        android:layout_centerHorizontal="true"
+        android:textColor="#FFFFFF" />
+
+    <EditText
+        android:id="@+id/trip_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/control_header"
+        android:hint="@string/trip_name_hint"
+        android:textColor="#FFFFFF"
+        android:textColorHint="#C0C0C0"
+        android:backgroundTint="#FFFFFF"
+        android:layout_marginTop="15dip"/>
+
+    <Button
+        android:layout_width="150dp"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/trip_name"
+        android:text="@string/toggle_trip_button"
+        android:id="@+id/toggle_trip"
+        android:layout_marginTop="30dip"
+        android:background="#FFFFFF"
+        android:layout_alignParentLeft="true" />
+
+    <Button
+        android:layout_width="150dp"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/trip_name"
+        android:text="@string/sync_button"
+        android:id="@+id/sync_trip"
+        android:layout_marginTop="30dip"
+        android:background="#FFFFFF"
+        android:layout_alignParentRight="true" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:text="@string/training_header"
+        android:id="@+id/training_header"
+        android:layout_below="@id/toggle_trip"
+        android:layout_marginTop="30dip"
+        android:layout_centerHorizontal="true"
+        android:textColor="#FFFFFF" />
+
+    <Button
+        android:layout_width="150dp"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/training_header"
+        android:layout_alignParentLeft="true"
+        android:text="@string/speed_bump_button"
+        android:id="@+id/speed_bump"
+        android:layout_marginTop="30dip"
+        android:background="#FFFFFF" />
+
+    <Button
+        android:layout_width="150dp"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/training_header"
+        android:layout_alignParentRight="true"
+        android:text="@string/pothole_button"
+        android:id="@+id/pothole"
+        android:layout_marginTop="30dip"
+        android:background="#FFFFFF" />
+
+    <Button
+        android:layout_width="150dp"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/pothole"
+        android:layout_alignParentLeft="true"
+        android:text="@string/acc_button"
+        android:id="@+id/harsh_acc"
+        android:layout_marginTop="30dip"
+        android:background="#FFFFFF" />
+
+    <Button
+        android:layout_width="150dp"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/pothole"
+        android:layout_alignParentRight="true"
+        android:text="@string/brk_button"
+        android:id="@+id/harsh_brk"
+        android:layout_marginTop="30dip"
+        android:background="#FFFFFF" />
+
+    <Button
+        android:layout_width="150dp"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/harsh_acc"
+        android:layout_alignParentLeft="true"
+        android:text="@string/turn_button"
+        android:id="@+id/harsh_turn"
+        android:layout_marginTop="30dip"
+        android:background="#FFFFFF" />
+
+</RelativeLayout>
