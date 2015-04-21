@@ -6,13 +6,13 @@
     <string name="flash_msg">RIDE SAFE, \nRIDE EFFICIENT.</string>
     <string name="start_button">Start</string>
 
-    <string name="title_activity_login">LoginActivity</string>
+    <string name="title_activity_login">Sign In</string>
     <string name="username_hint">Enter your username</string>
     <string name="password_hint">Password</string>
     <string name="login_button">Sign In</string>
 
 
-    <string name="title_activity_control">ControlActivity</string>
+    <string name="title_activity_control">Controls</string>
     <string name="control_header">Trip Controls</string>
     <string name="trip_name_hint">Provide a name for this trip</string>
     <string name="toggle_trip_button">Start Trip</string>
@@ -20,7 +20,7 @@
     <string name="training_header">Training Controls</string>
     <string name="speed_bump_button">Speed bump</string>
     <string name="pothole_button">Pothole</string>
-    <string name="acc_button">Harsh Acceleration</string>
+    <string name="acc_button">Harsh Accel.</string>
     <string name="brk_button">Harsh Braking</string>
     <string name="turn_button">Harsh Turn</string>
 

@@ -27,6 +27,7 @@
         android:layout_below="@+id/textView"
         android:layout_centerHorizontal="true"
         android:layout_marginTop="39dp"
-        android:background="#FFFFFF" />
+        android:background="#FFFFFF"
+        android:onClick="startApp" />
 
 </RelativeLayout>

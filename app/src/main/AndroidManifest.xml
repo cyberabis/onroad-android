@@ -12,17 +12,24 @@
             android:label="@string/app_name" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
         <activity
             android:name=".LoginActivity"
-            android:label="@string/title_activity_login" >
+            android:label="@string/title_activity_login"
+            android:parentActivityName = "io.logbase.onroad.MainActivity" >
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value="io.logbase.onroad.MainActivity" />
         </activity>
         <activity
             android:name=".ControlActivity"
-            android:label="@string/title_activity_control" >
+            android:label="@string/title_activity_control"
+            android:parentActivityName = "io.logbase.onroad.MainActivity" >
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value="io.logbase.onroad.MainActivity" />
         </activity>
     </application>
 
