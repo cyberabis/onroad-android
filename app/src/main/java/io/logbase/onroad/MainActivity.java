@@ -1,6 +1,8 @@
 package io.logbase.onroad;
 
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.view.Menu;
@@ -40,7 +42,14 @@ public class MainActivity extends ActionBarActivity {
     }
 
     public void startApp(View view) {
-        Intent intent = new Intent(this, ControlActivity.class);
+        SharedPreferences sharedPref = this.getSharedPreferences(getString(R.string.pref_file_key),
+                Context.MODE_PRIVATE);
+        String username = sharedPref.getString(getString(R.string.username_key), null);
+        Intent intent = null;
+        if (username == null)
+            intent = new Intent(this, LoginActivity.class);
+        else
+            intent = new Intent(this, ControlActivity.class); //TODO validate user
         startActivity(intent);
     }
 }
