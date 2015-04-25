@@ -4,9 +4,15 @@ import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
+import android.util.Log;
 
 
 public class ControlActivity extends ActionBarActivity {
+
+    private static final String LOG_TAG = "ONROAD";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,5 +41,18 @@ public class ControlActivity extends ActionBarActivity {
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    public void toggleTrip(View view) {
+        Button toggleButton = (Button) findViewById(R.id.toggle_trip);
+        EditText editText = (EditText) findViewById(R.id.trip_name);
+        Log.i(LOG_TAG, "Toggle status: " + toggleButton.getText());
+        if (toggleButton.getText().equals(getString(R.string.toggle_trip_button))) {
+            editText.setEnabled(false);
+            toggleButton.setText(getString(R.string.toggle_trip_stop_button));
+        } else {
+            editText.setEnabled(true);
+            toggleButton.setText(getString(R.string.toggle_trip_button));
+        }
     }
 }

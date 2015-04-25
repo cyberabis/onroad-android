@@ -18,6 +18,7 @@
     <string name="control_header">Trip Controls</string>
     <string name="trip_name_hint">Provide a name for this trip</string>
     <string name="toggle_trip_button">Start Trip</string>
+    <string name="toggle_trip_stop_button">Stop Trip</string>
     <string name="sync_button">Upload data</string>
     <string name="training_header">Training Controls</string>
     <string name="speed_bump_button">Speed bump</string>

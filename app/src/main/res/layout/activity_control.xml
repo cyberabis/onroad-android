@@ -36,7 +36,8 @@
         android:id="@+id/toggle_trip"
         android:layout_marginTop="30dip"
         android:background="#FFFFFF"
-        android:layout_alignParentLeft="true" />
+        android:layout_alignParentLeft="true"
+        android:onClick="toggleTrip" />
 
     <Button
         android:layout_width="150dp"
