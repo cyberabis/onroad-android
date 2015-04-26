@@ -17,6 +17,11 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.util.Log;
 
+import com.amazonaws.auth.CognitoCachingCredentialsProvider;
+import com.amazonaws.mobileconnectors.s3.transfermanager.TransferManager;
+import com.amazonaws.mobileconnectors.s3.transfermanager.Upload;
+import com.amazonaws.regions.Regions;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -28,6 +33,7 @@ import java.util.Date;
 public class ControlActivity extends ActionBarActivity {
 
     private static final String LOG_TAG = "OnRoad Controls";
+    private CognitoCachingCredentialsProvider credentialsProvider = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -40,6 +46,13 @@ public class ControlActivity extends ActionBarActivity {
         LocalBroadcastManager.getInstance(this).registerReceiver(
                 mStatusReceiver,
                 mStatusIntentFilter);
+        //AWS
+        // Initialize the Amazon Cognito credentials provider
+        credentialsProvider = new CognitoCachingCredentialsProvider(
+                this, // Context
+                "us-east-1:de6c43db-ed3e-4c40-9c03-f0ba710c669c", // Identity Pool ID
+                Regions.US_EAST_1 // Region
+        );
     }
 
 
@@ -153,11 +166,14 @@ public class ControlActivity extends ActionBarActivity {
     }
 
     public void upload(View view) {
+        TransferManager transferManager = new TransferManager(credentialsProvider);
         File directory = getFilesDir();
         File[] files = directory.listFiles();
         for(int i=0; i<files.length; i++) {
             Log.i(LOG_TAG, " File name: " + files[i].getName());
             //TODO compress and upload file
+            Upload upload = transferManager.upload("onroad", files[i].getName(), files[i]);
+            //If upload complete, remove the file.
         }
     }
 

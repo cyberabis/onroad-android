@@ -145,20 +145,20 @@ public class SensorTrackerIntentService extends IntentService implements
 
     @Override
     public void onSensorChanged(SensorEvent event) {
-        //TODO write event data as JSON string
+        float x = event.values[0];
+        float y = event.values[1];
+        float z = event.values[2];
+        long ts = event.timestamp;
         if(event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
-            float x = event.values[0];
-            float y = event.values[1];
-            float z = event.values[2];
             Log.i(LOG_TAG, "Accelerometer values: " + x + "|" + y + "|" + z);
+            writeToFile("acc|" + String.valueOf(ts) + "|" + String.valueOf(x) + "|"
+                    + String.valueOf(y) + "|" + String.valueOf(z));
         }
         if(event.sensor.getType() == Sensor.TYPE_GYROSCOPE) {
-            float x = event.values[0];
-            float y = event.values[1];
-            float z = event.values[2];
             Log.i(LOG_TAG, "Gyroscope values: " + x + "|" + y + "|" + z);
+            writeToFile("gyr|" + String.valueOf(ts) + "|" + String.valueOf(x) + "|"
+                    + String.valueOf(y) + "|" + String.valueOf(z));
         }
-        writeToFile("TEST");
     }
 
     @Override
@@ -168,9 +168,11 @@ public class SensorTrackerIntentService extends IntentService implements
 
     @Override
     public void onLocationChanged(Location location) {
-        //TODO write event data as JSON string
+        double lat = location.getLatitude();
+        double lon = location.getLongitude();
+        long ts = location.getTime();
         Log.i(LOG_TAG, "Location values: " + location.getLatitude() + "|" + location.getLongitude());
-        writeToFile("TEST");
+        writeToFile("loc|" + String.valueOf(ts) + "|" + String.valueOf(lat) + "|" + String.valueOf(lon));
     }
 
     private void writeToFile(String data){
