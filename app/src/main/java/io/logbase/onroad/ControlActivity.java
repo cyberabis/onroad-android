@@ -17,6 +17,10 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.util.Log;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStreamReader;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -146,7 +150,15 @@ public class ControlActivity extends ActionBarActivity {
                 alertDialog.show();
             }
         }
+    }
 
+    public void upload(View view) {
+        File directory = getFilesDir();
+        File[] files = directory.listFiles();
+        for(int i=0; i<files.length; i++) {
+            Log.i(LOG_TAG, " File name: " + files[i].getName());
+            //TODO compress and upload file
+        }
     }
 
 }
