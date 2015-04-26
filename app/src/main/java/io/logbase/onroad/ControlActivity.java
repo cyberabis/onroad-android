@@ -1,5 +1,8 @@
 package io.logbase.onroad;
 
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.view.Menu;
@@ -12,7 +15,7 @@ import android.util.Log;
 
 public class ControlActivity extends ActionBarActivity {
 
-    private static final String LOG_TAG = "ONROAD";
+    private static final String LOG_TAG = "OnRoad Controls";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -43,16 +46,51 @@ public class ControlActivity extends ActionBarActivity {
         return super.onOptionsItemSelected(item);
     }
 
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+
+        Log.i(LOG_TAG, "Destroying OnRoad App...");
+
+        //TODO
+        //Kill any threads
+
+        //Reset state keys
+        SharedPreferences sharedPref = this.getSharedPreferences(getString(R.string.pref_file_key),
+                Context.MODE_PRIVATE);
+        String toggleMode = sharedPref.getString(getString(R.string.toggle_mode_key), null);
+        if(toggleMode!= null) {
+            SharedPreferences.Editor editor = sharedPref.edit();
+            editor.remove(getString(R.string.toggle_mode_key));
+        }
+    }
+
     public void toggleTrip(View view) {
+        SharedPreferences sharedPref = this.getSharedPreferences(getString(R.string.pref_file_key),
+                Context.MODE_PRIVATE);
+        String toggleMode = sharedPref.getString(getString(R.string.toggle_mode_key), null);
         Button toggleButton = (Button) findViewById(R.id.toggle_trip);
         EditText editText = (EditText) findViewById(R.id.trip_name);
-        Log.i(LOG_TAG, "Toggle status: " + toggleButton.getText());
-        if (toggleButton.getText().equals(getString(R.string.toggle_trip_button))) {
+
+        Log.i(LOG_TAG, "Toggle mode: " + toggleMode);
+
+        if ((toggleMode != null) && (toggleMode.equals(getString(R.string.toggle_trip_stop_button)))) {
+            //Stop, next state is start
+            SharedPreferences.Editor editor = sharedPref.edit();
+            editor.putString(getString(R.string.toggle_mode_key), getString(R.string.toggle_trip_start_button));
+            editor.commit();
+            editText.setEnabled(true);
+            toggleButton.setText(getString(R.string.toggle_trip_start_button));
+        } else {
+            //Start, next state is stop
+            SharedPreferences.Editor editor = sharedPref.edit();
+            editor.putString(getString(R.string.toggle_mode_key), getString(R.string.toggle_trip_stop_button));
+            editor.commit();
             editText.setEnabled(false);
             toggleButton.setText(getString(R.string.toggle_trip_stop_button));
-        } else {
-            editText.setEnabled(true);
-            toggleButton.setText(getString(R.string.toggle_trip_button));
+            Intent sensorTrackerIntent = new Intent(this, SensorTrackerIntentService.class);
+            this.startService(sensorTrackerIntent);
+
         }
     }
 }
