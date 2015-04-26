@@ -16,4 +16,6 @@ public final class Constants {
 
     public static final String TRIP_NAME_EXTRA = "TRIP_NAME";
 
+    public static final String S3_BUCKET_NAME = "onroad";
+
 }

@@ -33,6 +33,7 @@ import java.util.Date;
 public class ControlActivity extends ActionBarActivity {
 
     private static final String LOG_TAG = "OnRoad Controls";
+    private static final int UPLOAD_SLEEP_FREQ = 5000;
     private CognitoCachingCredentialsProvider credentialsProvider = null;
 
     @Override
@@ -172,8 +173,17 @@ public class ControlActivity extends ActionBarActivity {
         for(int i=0; i<files.length; i++) {
             Log.i(LOG_TAG, " File name: " + files[i].getName());
             //TODO compress and upload file
-            Upload upload = transferManager.upload("onroad", files[i].getName(), files[i]);
+            Upload upload = transferManager.upload(Constants.S3_BUCKET_NAME, files[i].getName(), files[i]);
             //If upload complete, remove the file.
+            while(!upload.isDone()) {
+                try {
+                    Thread.sleep(UPLOAD_SLEEP_FREQ);
+                } catch (Exception e) {
+                    Log.e(LOG_TAG, "Interrupted while sleeping : " + e);
+                }
+            }
+            //Remove file
+            files[i].delete();
         }
     }
 
