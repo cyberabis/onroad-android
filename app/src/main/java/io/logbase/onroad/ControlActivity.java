@@ -125,11 +125,9 @@ public class ControlActivity extends ActionBarActivity {
                 editor.commit();
                 editText.setEnabled(true);
                 toggleButton.setText(getString(R.string.toggle_trip_start_button));
-                //Intent locationSettingsIntent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-                //startActivity(locationSettingsIntent);
                 AlertDialog.Builder alertDialog = new AlertDialog.Builder(ControlActivity.this);
                 alertDialog.setTitle(getString(R.string.app_name));
-                alertDialog.setMessage(getString(R.string.gps_alert));
+                alertDialog.setMessage(getString(R.string.sensor_alert));
                 alertDialog.setNeutralButton("OK", new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int which) {
                         // Do nothing

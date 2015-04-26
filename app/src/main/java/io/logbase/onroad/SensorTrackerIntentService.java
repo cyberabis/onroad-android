@@ -4,6 +4,10 @@ import android.app.IntentService;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.location.Location;
 import android.location.LocationManager;
 import android.os.Bundle;
@@ -13,16 +17,22 @@ import android.util.Log;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.location.LocationListener;
+import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.common.api.GoogleApiClient.ConnectionCallbacks;
 import com.google.android.gms.common.api.GoogleApiClient.OnConnectionFailedListener;
 
 public class SensorTrackerIntentService extends IntentService implements
-        ConnectionCallbacks, OnConnectionFailedListener {
+        ConnectionCallbacks, OnConnectionFailedListener, SensorEventListener, LocationListener {
 
     private static final String LOG_TAG = "OnRoad Sensor Tracker";
+    private static final int FREQUENCY_MILLIS = 1000;
     private GoogleApiClient mGoogleApiClient;
     private static boolean runService = true;
+    private SensorEvent accelerometerEvent = null;
+    private SensorEvent gyroscopeEvent = null;
+    private Location lastLocation = null;
 
     public SensorTrackerIntentService() {
         super("SensorTrackerIntentService");
@@ -31,31 +41,46 @@ public class SensorTrackerIntentService extends IntentService implements
     @Override
     protected void onHandleIntent(Intent intent) {
         Log.i(LOG_TAG, "Sensor tracker service started.");
-        runService = true;
-        //Check is GPS is available
+
+        //GPS and Sensors
         LocationManager lm = (LocationManager) getSystemService(LOCATION_SERVICE);
-        if(lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+        SensorManager mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        Sensor accelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        Sensor gyroscope = mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
+
+        //Check is GPS, sensors are available
+        if( lm.isProviderEnabled(LocationManager.GPS_PROVIDER) && (accelerometer != null)
+                && (gyroscope != null) ){
+            runService = true;
             mGoogleApiClient = new GoogleApiClient.Builder(this)
                     .addConnectionCallbacks(this)
                     .addOnConnectionFailedListener(this)
                     .addApi(LocationServices.API)
                     .build();
+            //GPS listener will be registered on connection
             mGoogleApiClient.connect();
-            long frequency = 1000;
-            Location mLastLocation = null;
+            //Register sensor listeners
+            mSensorManager.registerListener(this, accelerometer, FREQUENCY_MILLIS * 1000);
+            mSensorManager.registerListener(this, gyroscope, FREQUENCY_MILLIS * 1000);
+
             while(runService) {
-                //Read sensor data and write to file
-                //GPS
-                mLastLocation = LocationServices.FusedLocationApi.getLastLocation(
+                //Read data and write to file
+                /*
+                lastLocation = LocationServices.FusedLocationApi.getLastLocation(
                         mGoogleApiClient);
-                Log.i(LOG_TAG, "Location : " + mLastLocation);
-                if (mLastLocation != null) {
-                    //TODO
-                    //Save
+                Log.i(LOG_TAG, "Location : " + lastLocation);
+                if (lastLocation != null) {
+
                 }
+                */
+                Log.i(LOG_TAG, "Location: " + lastLocation);
+                Log.i(LOG_TAG, "Accelerometer: " + accelerometerEvent);
+                Log.i(LOG_TAG, "Gyroscope: " + gyroscopeEvent);
+                //TODO write to file
+
                 //Sleep for a frequency
                 try {
-                    Thread.sleep(frequency);
+                    Thread.sleep(FREQUENCY_MILLIS);
                 } catch (Exception e) {
                 }
                 //Read flag again
@@ -66,10 +91,14 @@ public class SensorTrackerIntentService extends IntentService implements
                     runService = false;
                 }
             }
+            //Unregister listeners, recording complete
+            LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
+            mSensorManager.unregisterListener(this);
             mGoogleApiClient.disconnect();
             Log.i(LOG_TAG, "Disconnecting Google API, stopping sensor tracker service.");
         } else {
-            //Broadcast to activity that the service stopped
+            Log.i(LOG_TAG, "GPS or Sensors unavailable.");
+            //Broadcast to activity that the service stopped due to state issue
             Intent localIntent = new Intent(Constants.BROADCAST_ACTION)
                     .putExtra(Constants.SERVICE_STATUS, Constants.STOP_STATUS);
             // Broadcasts the Intent to receivers in this app.
@@ -81,6 +110,12 @@ public class SensorTrackerIntentService extends IntentService implements
     @Override
     public void onConnected(Bundle connectionHint) {
         Log.i(LOG_TAG, "Google API connected");
+        LocationRequest mLocationRequest = new LocationRequest();
+        mLocationRequest.setInterval(FREQUENCY_MILLIS);
+        mLocationRequest.setFastestInterval(FREQUENCY_MILLIS);
+        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient,
+                mLocationRequest, this);
         runService = true;
     }
 
@@ -103,4 +138,21 @@ public class SensorTrackerIntentService extends IntentService implements
         runService = false;
     }
 
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        if(event.sensor.getType() == Sensor.TYPE_ACCELEROMETER)
+            accelerometerEvent = event;
+        if(event.sensor.getType() == Sensor.TYPE_GYROSCOPE)
+            gyroscopeEvent = event;
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+        //Do nothing for now
+    }
+
+    @Override
+    public void onLocationChanged(Location location) {
+        lastLocation = location;
+    }
 }

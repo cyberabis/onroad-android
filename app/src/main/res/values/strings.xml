@@ -27,6 +27,6 @@
     <string name="acc_button">Harsh Accel.</string>
     <string name="brk_button">Harsh Braking</string>
     <string name="turn_button">Harsh Turn</string>
-    <string name="gps_alert">Location Services and GPS needs to be enabled.</string>
+    <string name="sensor_alert">Accelerometer, Gyroscope and GPS needs to be enabled.</string>
 
 </resources>
