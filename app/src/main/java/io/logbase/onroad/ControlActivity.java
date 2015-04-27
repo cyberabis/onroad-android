@@ -7,6 +7,8 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
@@ -33,8 +35,6 @@ import java.util.Date;
 public class ControlActivity extends ActionBarActivity {
 
     private static final String LOG_TAG = "OnRoad Controls";
-    private static final int UPLOAD_SLEEP_FREQ = 5000;
-    private CognitoCachingCredentialsProvider credentialsProvider = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,13 +47,7 @@ public class ControlActivity extends ActionBarActivity {
         LocalBroadcastManager.getInstance(this).registerReceiver(
                 mStatusReceiver,
                 mStatusIntentFilter);
-        //AWS
-        // Initialize the Amazon Cognito credentials provider
-        credentialsProvider = new CognitoCachingCredentialsProvider(
-                this, // Context
-                "us-east-1:de6c43db-ed3e-4c40-9c03-f0ba710c669c", // Identity Pool ID
-                Regions.US_EAST_1 // Region
-        );
+
     }
 
 
@@ -84,9 +78,6 @@ public class ControlActivity extends ActionBarActivity {
         super.onDestroy();
 
         Log.i(LOG_TAG, "Destroying OnRoad App...");
-
-        //TODO
-        //Kill any threads
 
         //Reset state keys
         SharedPreferences sharedPref = this.getSharedPreferences(getString(R.string.pref_file_key),
@@ -130,8 +121,7 @@ public class ControlActivity extends ActionBarActivity {
             tripName = tripName + timestamp;
             Log.i(LOG_TAG, "Trip Name: " + tripName);
             sensorTrackerIntent.putExtra(Constants.TRIP_NAME_EXTRA, tripName);
-            this.startService(sensorTrackerIntent);
-
+            startService(sensorTrackerIntent);
         }
     }
 
@@ -143,7 +133,7 @@ public class ControlActivity extends ActionBarActivity {
         public void onReceive(Context context, Intent intent) {
             String status = intent.getExtras().getString(Constants.SERVICE_STATUS);
             Log.i(LOG_TAG, "Received status: " + status);
-            if((status != null)&&(status.equals(Constants.STOP_STATUS))){
+            if((status != null)&&(status.equals(Constants.SENSOR_TRACKER_STOP_STATUS))){
                 SharedPreferences sharedPref = context.getSharedPreferences(getString(R.string.pref_file_key),
                         Context.MODE_PRIVATE);
                 Button toggleButton = (Button) findViewById(R.id.toggle_trip);
@@ -162,28 +152,48 @@ public class ControlActivity extends ActionBarActivity {
                     }
                 });
                 alertDialog.show();
+            } else if((status != null)&&(status.equals(Constants.DATA_UPLOAD_DONE_STATUS))){
+                Button syncButton = (Button) findViewById(R.id.sync_trip);
+                syncButton.setText(R.string.sync_button);
+                syncButton.setEnabled(true);
             }
         }
     }
 
     public void upload(View view) {
-        TransferManager transferManager = new TransferManager(credentialsProvider);
-        File directory = getFilesDir();
-        File[] files = directory.listFiles();
-        for(int i=0; i<files.length; i++) {
-            Log.i(LOG_TAG, " File name: " + files[i].getName());
-            //TODO compress and upload file
-            Upload upload = transferManager.upload(Constants.S3_BUCKET_NAME, files[i].getName(), files[i]);
-            //If upload complete, remove the file.
-            while(!upload.isDone()) {
-                try {
-                    Thread.sleep(UPLOAD_SLEEP_FREQ);
-                } catch (Exception e) {
-                    Log.e(LOG_TAG, "Interrupted while sleeping : " + e);
+        boolean uploadReady = true;
+        //Check if trip is in progress, and internet is available
+        SharedPreferences sharedPref = this.getSharedPreferences(getString(R.string.pref_file_key),
+                Context.MODE_PRIVATE);
+        String toggleMode = sharedPref.getString(getString(R.string.toggle_mode_key), null);
+        if ((toggleMode != null) && (toggleMode.equals(getString(R.string.toggle_trip_stop_button))))
+            uploadReady = false;
+        if(uploadReady) {
+            ConnectivityManager cm = (ConnectivityManager) this.getSystemService(Context.CONNECTIVITY_SERVICE);
+            NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+            uploadReady = activeNetwork != null &&
+                    activeNetwork.isConnectedOrConnecting();
+        }
+        if(uploadReady) {
+            //Start new background thread
+            //Change button msg and enabled state until upload completes
+            Log.i(LOG_TAG, "Going to start upload");
+            Intent dataUploadIntent = new Intent(this, DataUploadIntentService.class);
+            startService(dataUploadIntent);
+            Button syncButton = (Button) findViewById(R.id.sync_trip);
+            syncButton.setText(R.string.sync_progress_msg);
+            syncButton.setEnabled(false);
+        } else {
+            Log.i(LOG_TAG, "Not ready for upload");
+            AlertDialog.Builder alertDialog = new AlertDialog.Builder(ControlActivity.this);
+            alertDialog.setTitle(getString(R.string.app_name));
+            alertDialog.setMessage(getString(R.string.upload_alert));
+            alertDialog.setNeutralButton("OK", new DialogInterface.OnClickListener() {
+                public void onClick(DialogInterface dialog, int which) {
+                    // Do nothing
                 }
-            }
-            //Remove file
-            files[i].delete();
+            });
+            alertDialog.show();
         }
     }
 

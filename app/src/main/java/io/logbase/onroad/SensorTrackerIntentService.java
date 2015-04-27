@@ -105,7 +105,7 @@ public class SensorTrackerIntentService extends IntentService implements
             Log.i(LOG_TAG, "GPS or Sensors unavailable.");
             //Broadcast to activity that the service stopped due to state issue
             Intent localIntent = new Intent(Constants.BROADCAST_ACTION)
-                    .putExtra(Constants.SERVICE_STATUS, Constants.STOP_STATUS);
+                    .putExtra(Constants.SERVICE_STATUS, Constants.SENSOR_TRACKER_STOP_STATUS);
             // Broadcasts the Intent to receivers in this app.
             LocalBroadcastManager.getInstance(this).sendBroadcast(localIntent);
         }

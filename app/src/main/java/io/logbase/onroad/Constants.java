@@ -5,14 +5,13 @@ package io.logbase.onroad;
  */
 public final class Constants {
 
-    // Defines a custom Intent action
     public static final String BROADCAST_ACTION = "io.logbase.onroad.BROADCAST";
 
-    // Defines the key for the status "extra" in an Intent
     public static final String SERVICE_STATUS =  "io.logbase.onroad.SSTATUS";
 
-    // Defines the key for the status "extra" in an Intent
-    public static final String STOP_STATUS = "io.logbase.onroad.STOP";
+    public static final String SENSOR_TRACKER_STOP_STATUS = "io.logbase.onroad.STSTOP";
+
+    public static final String DATA_UPLOAD_DONE_STATUS = "io.logbase.onroad.DUDONE";
 
     public static final String TRIP_NAME_EXTRA = "TRIP_NAME";
 
