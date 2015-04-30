@@ -19,15 +19,6 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.util.Log;
 
-import com.amazonaws.auth.CognitoCachingCredentialsProvider;
-import com.amazonaws.mobileconnectors.s3.transfermanager.TransferManager;
-import com.amazonaws.mobileconnectors.s3.transfermanager.Upload;
-import com.amazonaws.regions.Regions;
-
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStreamReader;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -47,6 +38,19 @@ public class ControlActivity extends ActionBarActivity {
         LocalBroadcastManager.getInstance(this).registerReceiver(
                 mStatusReceiver,
                 mStatusIntentFilter);
+        //Restore state
+        SharedPreferences sharedPref = this.getSharedPreferences(getString(R.string.pref_file_key),
+                Context.MODE_PRIVATE);
+        String toggleMode = sharedPref.getString(getString(R.string.toggle_mode_key), null);
+        Button toggleButton = (Button) findViewById(R.id.toggle_trip);
+        EditText editText = (EditText) findViewById(R.id.trip_name);
+        if ((toggleMode != null) && (toggleMode.equals(getString(R.string.toggle_trip_stop_button)))) {
+            //implies data logging is in progress
+            //Get the trip name
+            editText.setText(sharedPref.getString(getString(R.string.trip_name), ""));
+            editText.setEnabled(false);
+            toggleButton.setText(getString(R.string.toggle_trip_stop_button));
+        }
 
     }
 
@@ -92,6 +96,7 @@ public class ControlActivity extends ActionBarActivity {
     public void toggleTrip(View view) {
         SharedPreferences sharedPref = this.getSharedPreferences(getString(R.string.pref_file_key),
                 Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = sharedPref.edit();
         String toggleMode = sharedPref.getString(getString(R.string.toggle_mode_key), null);
         Button toggleButton = (Button) findViewById(R.id.toggle_trip);
         EditText editText = (EditText) findViewById(R.id.trip_name);
@@ -100,15 +105,18 @@ public class ControlActivity extends ActionBarActivity {
 
         if ((toggleMode != null) && (toggleMode.equals(getString(R.string.toggle_trip_stop_button)))) {
             //Stop, next state is start
-            SharedPreferences.Editor editor = sharedPref.edit();
             editor.putString(getString(R.string.toggle_mode_key), getString(R.string.toggle_trip_start_button));
+            editor.remove(getString(R.string.trip_name));
             editor.commit();
             editText.setEnabled(true);
             toggleButton.setText(getString(R.string.toggle_trip_start_button));
+            editText.setText("");
         } else {
             //Start, next state is stop
-            SharedPreferences.Editor editor = sharedPref.edit();
+            //Save toggle mode
             editor.putString(getString(R.string.toggle_mode_key), getString(R.string.toggle_trip_stop_button));
+            //Save trip name in shared pref
+            editor.putString(getString(R.string.trip_name), editText.getText().toString());
             editor.commit();
             editText.setEnabled(false);
             toggleButton.setText(getString(R.string.toggle_trip_stop_button));

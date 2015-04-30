@@ -5,6 +5,7 @@
     <string name="pref_file_key">onroad</string>
     <string name="username_key">onroad_user</string>
     <string name="toggle_mode_key">toggle_mode</string>
+    <string name="trip_name">trip_name</string>
 
     <string name="flash_msg">RIDE SAFE, \nRIDE EFFICIENT.</string>
     <string name="start_button">Start</string>
