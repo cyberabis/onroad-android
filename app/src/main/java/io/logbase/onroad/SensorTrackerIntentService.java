@@ -24,6 +24,7 @@ import com.google.android.gms.common.api.GoogleApiClient.OnConnectionFailedListe
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.util.Date;
 
 public class SensorTrackerIntentService extends IntentService implements
         ConnectionCallbacks, OnConnectionFailedListener, SensorEventListener, LocationListener {
@@ -33,6 +34,13 @@ public class SensorTrackerIntentService extends IntentService implements
     private GoogleApiClient mGoogleApiClient;
     private static boolean runService = true;
     private FileOutputStream outputStream = null;
+    private Location lastLocation = null;
+    private SensorEvent lastAccelerometerEvent = null;
+    private SensorEvent lastGyroscopeEvent = null;
+    private long lastAccelerometerEventTime = 0;
+    private long lastGyroscopeEventTime = 0;
+    private long lastLocationTime = 0;
+    private static final boolean FIXED_FREQ_WRITE = true;
 
     public SensorTrackerIntentService() {
         super("SensorTrackerIntentService");
@@ -78,6 +86,42 @@ public class SensorTrackerIntentService extends IntentService implements
                 } catch (Exception e) {
                     Log.e(LOG_TAG, "Interrupted while sleeping : " + e);
                 }
+
+                //if fixedFrequencyWrite, write to file.
+                if(FIXED_FREQ_WRITE) {
+                    if(lastLocation != null) {
+                        double lat = lastLocation.getLatitude();
+                        double lon = lastLocation.getLongitude();
+                        //long ts = lastLocation.getTime();
+                        long ts = lastLocationTime;
+                        Log.i(LOG_TAG, "Location values: " + ts + "|" + lastLocation.getLatitude() + "|" + lastLocation.getLongitude());
+                        writeToFile("loc|" + String.valueOf(ts) + "|" + String.valueOf(lat) + "|" + String.valueOf(lon));
+                        lastLocation = null;
+                    }
+                    if(lastAccelerometerEvent != null) {
+                        float x = lastAccelerometerEvent.values[0];
+                        float y = lastAccelerometerEvent.values[1];
+                        float z = lastAccelerometerEvent.values[2];
+                        //long ts = lastAccelerometerEvent.timestamp;
+                        long ts = lastAccelerometerEventTime;
+                        Log.i(LOG_TAG, "Accelerometer values: " + ts + "|" + x + "|" + y + "|" + z);
+                        writeToFile("acc|" + String.valueOf(ts) + "|" + String.valueOf(x) + "|"
+                                + String.valueOf(y) + "|" + String.valueOf(z));
+                        lastAccelerometerEvent = null;
+                    }
+                    if(lastGyroscopeEvent != null) {
+                        float x = lastGyroscopeEvent.values[0];
+                        float y = lastGyroscopeEvent.values[1];
+                        float z = lastGyroscopeEvent.values[2];
+                        //long ts = lastGyroscopeEvent.timestamp;
+                        long ts = lastGyroscopeEventTime;
+                        Log.i(LOG_TAG, "Gyroscope values: " + ts + "|" + x + "|" + y + "|" + z);
+                        writeToFile("gyr|" + String.valueOf(ts) + "|" + String.valueOf(x) + "|"
+                                + String.valueOf(y) + "|" + String.valueOf(z));
+                        lastGyroscopeEvent = null;
+                    }
+                }
+
                 //Read flag again
                 SharedPreferences sharedPref = this.getSharedPreferences(getString(R.string.pref_file_key),
                         Context.MODE_PRIVATE);
@@ -145,19 +189,35 @@ public class SensorTrackerIntentService extends IntentService implements
 
     @Override
     public void onSensorChanged(SensorEvent event) {
-        float x = event.values[0];
-        float y = event.values[1];
-        float z = event.values[2];
-        long ts = event.timestamp;
         if(event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
-            Log.i(LOG_TAG, "Accelerometer values: " + x + "|" + y + "|" + z);
-            writeToFile("acc|" + String.valueOf(ts) + "|" + String.valueOf(x) + "|"
-                    + String.valueOf(y) + "|" + String.valueOf(z));
+            if(!FIXED_FREQ_WRITE) {
+                float x = event.values[0];
+                float y = event.values[1];
+                float z = event.values[2];
+                //long ts = event.timestamp;
+                long ts = (new Date()).getTime();
+                Log.i(LOG_TAG, "Accelerometer values: " + ts + "|" + x + "|" + y + "|" + z);
+                writeToFile("acc|" + String.valueOf(ts) + "|" + String.valueOf(x) + "|"
+                        + String.valueOf(y) + "|" + String.valueOf(z));
+            } else {
+                lastAccelerometerEvent = event;
+                lastAccelerometerEventTime = (new Date()).getTime();
+            }
         }
         if(event.sensor.getType() == Sensor.TYPE_GYROSCOPE) {
-            Log.i(LOG_TAG, "Gyroscope values: " + x + "|" + y + "|" + z);
-            writeToFile("gyr|" + String.valueOf(ts) + "|" + String.valueOf(x) + "|"
-                    + String.valueOf(y) + "|" + String.valueOf(z));
+            if(!FIXED_FREQ_WRITE) {
+                float x = event.values[0];
+                float y = event.values[1];
+                float z = event.values[2];
+                //long ts = event.timestamp;
+                long ts = (new Date()).getTime();
+                Log.i(LOG_TAG, "Gyroscope values: " + ts + "|" + x + "|" + y + "|" + z);
+                writeToFile("gyr|" + String.valueOf(ts) + "|" + String.valueOf(x) + "|"
+                        + String.valueOf(y) + "|" + String.valueOf(z));
+            } else {
+                lastGyroscopeEvent = event;
+                lastGyroscopeEventTime = (new Date()).getTime();
+            }
         }
     }
 
@@ -170,9 +230,15 @@ public class SensorTrackerIntentService extends IntentService implements
     public void onLocationChanged(Location location) {
         double lat = location.getLatitude();
         double lon = location.getLongitude();
-        long ts = location.getTime();
-        Log.i(LOG_TAG, "Location values: " + location.getLatitude() + "|" + location.getLongitude());
-        writeToFile("loc|" + String.valueOf(ts) + "|" + String.valueOf(lat) + "|" + String.valueOf(lon));
+        //long ts = location.getTime();
+        long ts = (new Date()).getTime();
+        if(!FIXED_FREQ_WRITE) {
+            Log.i(LOG_TAG, "Location values: " + ts + "|" + location.getLatitude() + "|" + location.getLongitude());
+            writeToFile("loc|" + String.valueOf(ts) + "|" + String.valueOf(lat) + "|" + String.valueOf(lon));
+        } else {
+            lastLocation = location;
+            lastLocationTime = (new Date()).getTime();
+        }
     }
 
     private void writeToFile(String data){
