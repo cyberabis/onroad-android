@@ -28,13 +28,18 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.SortedMap;
+import java.util.TreeMap;
 
 public class AutoTrackerIntentService extends IntentService implements
         ConnectionCallbacks, OnConnectionFailedListener, SensorEventListener, LocationListener {
 
     private static final String LOG_TAG = "OnRoad Sensor Tracker";
-    private static final int AUTO_FREQUENCY_MILLIS = 10000;
+    private static final int AUTO_FREQUENCY_MILLIS = 10 * 1000;
     private static final int FREQUENCY_MILLIS = 100;
+    private static final long NOT_MOVING_ELAPSE_MILLIS = 5 * 60 * 1000;
+    private static final float NOT_MOVING_AVG_SPEED = 6;
+    private static final float SPEED_NOISE_CUTOFF = 55.55f;
     private GoogleApiClient mGoogleApiClient;
     private static boolean runService = true;
     private Location lastLocation = null;
@@ -49,6 +54,8 @@ public class AutoTrackerIntentService extends IntentService implements
     private SensorManager mSensorManager = null;
     private Sensor accelerometer = null;
     private Sensor gyroscope = null;
+    private boolean slowdownGPS = true;
+    private SortedMap<Long, Float> speeds = new TreeMap<Long, Float>();
 
     public AutoTrackerIntentService() {
         super("AutoTrackerIntentService");
@@ -113,6 +120,12 @@ public class AutoTrackerIntentService extends IntentService implements
 
     private void startRecording(){
         Log.i(LOG_TAG, "Trip start detected!");
+
+        //reconnect for faster GPS updates
+        mGoogleApiClient.disconnect();
+        slowdownGPS = false;
+        mGoogleApiClient.connect();
+
         boolean record = false;
         //Open file handle
         String tripName = "auto_trip_";
@@ -152,8 +165,10 @@ public class AutoTrackerIntentService extends IntentService implements
                     double lon = lastLocation.getLongitude();
                     //long ts = lastLocation.getTime();
                     long ts = lastLocationTime;
-                    Log.i(LOG_TAG, "Location values: " + ts + "|" + lastLocation.getLatitude() + "|" + lastLocation.getLongitude());
-                    writeToFile("loc|" + String.valueOf(ts) + "|" + String.valueOf(lat) + "|" + String.valueOf(lon));
+                    Log.i(LOG_TAG, "Location values: " + ts + "|" + lastLocation.getLatitude() + "|"
+                            + lastLocation.getLongitude() + "|" + lastLocation.getSpeed());
+                    writeToFile("loc|" + String.valueOf(ts) + "|" + String.valueOf(lat) + "|" + String.valueOf(lon)  + "|"
+                            + String.valueOf(lastLocation.getSpeed()));
                     lastLocation = null;
                 }
                 if(lastAccelerometerEvent != null) {
@@ -198,21 +213,38 @@ public class AutoTrackerIntentService extends IntentService implements
             outputStream = null;
         }
         Log.i(LOG_TAG, "Trip ended!");
+
+        //Reconnect for slower GPS
+        mGoogleApiClient.disconnect();
+        slowdownGPS = true;
+        mGoogleApiClient.connect();
     }
 
     private boolean isMoving(){
-        //TODO
-        //If no location update for a long time
-        //If speed is less than walking speed
-        return true;
+        long timeElapsed = new Date().getTime() - lastLocationTime;
+        float sumSpeed = 0;
+        for(Long time: speeds.keySet())
+            sumSpeed = sumSpeed + speeds.get(time);
+        float avgSpeed = sumSpeed / speeds.size();
+        if(timeElapsed > NOT_MOVING_ELAPSE_MILLIS)
+            return false;
+        else if (avgSpeed < NOT_MOVING_AVG_SPEED)
+            return false;
+        else
+            return true;
     }
 
     @Override
     public void onConnected(Bundle connectionHint) {
         Log.i(LOG_TAG, "Google API connected");
         LocationRequest mLocationRequest = new LocationRequest();
-        mLocationRequest.setInterval(FREQUENCY_MILLIS);
-        mLocationRequest.setFastestInterval(FREQUENCY_MILLIS);
+        if(slowdownGPS) {
+            mLocationRequest.setInterval(AUTO_FREQUENCY_MILLIS);
+            mLocationRequest.setFastestInterval(AUTO_FREQUENCY_MILLIS);
+        } else {
+            mLocationRequest.setInterval(FREQUENCY_MILLIS);
+            mLocationRequest.setFastestInterval(FREQUENCY_MILLIS);
+        }
         mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
         LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient,
                 mLocationRequest, this);
@@ -246,13 +278,13 @@ public class AutoTrackerIntentService extends IntentService implements
                 float y = event.values[1];
                 float z = event.values[2];
                 //long ts = event.timestamp;
-                long ts = (new Date()).getTime();
+                long ts = new Date().getTime();
                 Log.i(LOG_TAG, "Accelerometer values: " + ts + "|" + x + "|" + y + "|" + z);
                 writeToFile("acc|" + String.valueOf(ts) + "|" + String.valueOf(x) + "|"
                         + String.valueOf(y) + "|" + String.valueOf(z));
             } else {
                 lastAccelerometerEvent = event;
-                lastAccelerometerEventTime = (new Date()).getTime();
+                lastAccelerometerEventTime = new Date().getTime();
             }
         }
         if(event.sensor.getType() == Sensor.TYPE_GYROSCOPE) {
@@ -261,13 +293,13 @@ public class AutoTrackerIntentService extends IntentService implements
                 float y = event.values[1];
                 float z = event.values[2];
                 //long ts = event.timestamp;
-                long ts = (new Date()).getTime();
+                long ts = new Date().getTime();
                 Log.i(LOG_TAG, "Gyroscope values: " + ts + "|" + x + "|" + y + "|" + z);
                 writeToFile("gyr|" + String.valueOf(ts) + "|" + String.valueOf(x) + "|"
                         + String.valueOf(y) + "|" + String.valueOf(z));
             } else {
                 lastGyroscopeEvent = event;
-                lastGyroscopeEventTime = (new Date()).getTime();
+                lastGyroscopeEventTime = new Date().getTime();
             }
         }
     }
@@ -282,13 +314,28 @@ public class AutoTrackerIntentService extends IntentService implements
         double lat = location.getLatitude();
         double lon = location.getLongitude();
         //long ts = location.getTime();
-        long ts = (new Date()).getTime();
+        long ts = new Date().getTime();
         if(!FIXED_FREQ_WRITE) {
-            Log.i(LOG_TAG, "Location values: " + ts + "|" + location.getLatitude() + "|" + location.getLongitude());
-            writeToFile("loc|" + String.valueOf(ts) + "|" + String.valueOf(lat) + "|" + String.valueOf(lon));
+            Log.i(LOG_TAG, "Location values: " + ts + "|" + location.getLatitude() + "|" + location.getLongitude()
+                    + "|" + location.getSpeed());
+            writeToFile("loc|" + String.valueOf(ts) + "|" + String.valueOf(lat) + "|" + String.valueOf(lon) + "|"
+                    + String.valueOf(location.getSpeed()));
         } else {
             lastLocation = location;
-            lastLocationTime = (new Date()).getTime();
+            lastLocationTime = new Date().getTime();
+        }
+        //Get current ts
+        long currentWindowStart = new Date().getTime() - NOT_MOVING_ELAPSE_MILLIS;
+        long firstKey = speeds.firstKey();
+        if(firstKey < currentWindowStart){
+            //Get a tail map
+            Log.i(LOG_TAG, "limiting speeds map withing window");
+            SortedMap newSpeeds = speeds.tailMap(currentWindowStart);
+            speeds = newSpeeds;
+        }
+        if(location.getSpeed() < SPEED_NOISE_CUTOFF) {
+            speeds.put(ts, location.getSpeed());
+            Log.i(LOG_TAG, "Added speed: " + location.getSpeed() + "@" + location.getTime());
         }
     }
 
