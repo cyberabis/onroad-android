@@ -31,7 +31,7 @@ import java.util.Date;
 public class TripTrackerIntentService extends IntentService implements
         ConnectionCallbacks, OnConnectionFailedListener, SensorEventListener, LocationListener {
 
-    private static final String LOG_TAG = "OnRoad Sensor Tracker";
+    private static final String LOG_TAG = "OnRoad Trip Tracker";
     private static final int FREQUENCY_MILLIS = 100;
     private GoogleApiClient mGoogleApiClient;
     private static boolean runService = true;
@@ -46,12 +46,12 @@ public class TripTrackerIntentService extends IntentService implements
     private FileOutputStream outputStream = null;
 
     public TripTrackerIntentService() {
-        super("SensorTrackerIntentService");
+        super("TripTrackerIntentService");
     }
 
     @Override
     protected void onHandleIntent(Intent intent) {
-        Log.i(LOG_TAG, "Sensor tracker service started.");
+        Log.i(LOG_TAG, "Trip tracker service started.");
 
         //GPS and Sensors
         LocationManager lm = (LocationManager) getSystemService(LOCATION_SERVICE);
@@ -137,7 +137,7 @@ public class TripTrackerIntentService extends IntentService implements
                 //Read flag again
                 SharedPreferences sharedPref = this.getSharedPreferences(getString(R.string.pref_file_key),
                         Context.MODE_PRIVATE);
-                String toggleMode = sharedPref.getString(getString(R.string.toggle_mode_key), null);
+                String toggleMode = sharedPref.getString(getString(R.string.toggle_trip_mode_key), null);
                 if ((toggleMode != null) && (toggleMode.equals(getString(R.string.toggle_trip_start_button)))) {
                     runService = false;
                 }
@@ -165,7 +165,7 @@ public class TripTrackerIntentService extends IntentService implements
             // Broadcasts the Intent to receivers in this app.
             LocalBroadcastManager.getInstance(this).sendBroadcast(localIntent);
         }
-        Log.i(LOG_TAG, "Sensor tracker service stopped.");
+        Log.i(LOG_TAG, "Trip tracker service stopped.");
     }
 
     @Override

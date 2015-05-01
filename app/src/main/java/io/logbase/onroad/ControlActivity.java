@@ -98,11 +98,16 @@ public class ControlActivity extends ActionBarActivity {
         //Reset state keys
         SharedPreferences sharedPref = this.getSharedPreferences(getString(R.string.pref_file_key),
                 Context.MODE_PRIVATE);
-        String toggleMode = sharedPref.getString(getString(R.string.toggle_trip_mode_key), null);
-        if(toggleMode!= null) {
-            SharedPreferences.Editor editor = sharedPref.edit();
-            editor.remove(getString(R.string.toggle_mode_key));
-        }
+        String tripToggleMode = sharedPref.getString(getString(R.string.toggle_trip_mode_key), null);
+        String autoToggleMode = sharedPref.getString(getString(R.string.toggle_auto_mode_key), null);
+        String uploadStatus = sharedPref.getString(getString(R.string.upload_status_key), null);
+        SharedPreferences.Editor editor = sharedPref.edit();
+        if(tripToggleMode!= null)
+            editor.remove(getString(R.string.toggle_trip_mode_key));
+        if(autoToggleMode!= null)
+            editor.remove(getString(R.string.toggle_auto_mode_key));
+        if(uploadStatus != null)
+            editor.remove(getString(R.string.upload_status_key));
     }
 
     public void toggleTrip(View view) {
@@ -133,7 +138,7 @@ public class ControlActivity extends ActionBarActivity {
             editText.setEnabled(false);
             toggleButton.setText(getString(R.string.toggle_trip_stop_button));
             Intent tripTrackerIntent = new Intent(this, TripTrackerIntentService.class);
-            String tripName = "events_";
+            String tripName = "trip_";
             if ((editText.getText() != null) && (!editText.getText().toString().equals("")))
                 tripName = tripName + editText.getText().toString() + "_";
             SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd_HHmmss");
@@ -167,11 +172,6 @@ public class ControlActivity extends ActionBarActivity {
             toggleButton.setText(getString(R.string.toggle_auto_stop_button));
             //Start AutoIntentService
             Intent autoTrackerIntent = new Intent(this, AutoTrackerIntentService.class);
-            String tripName = "auto_events_";
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd_HHmmss");
-            String timestamp = sdf.format(new Date());
-            tripName = tripName + timestamp;
-            Log.i(LOG_TAG, "Auto file Name: " + tripName);
             startService(autoTrackerIntent);
         }
     }
