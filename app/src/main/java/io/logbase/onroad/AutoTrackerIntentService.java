@@ -138,6 +138,7 @@ public class AutoTrackerIntentService extends IntentService implements
             // Remove uploaded file and start next upload
             uploadFile.delete();
             upload = null;
+            Log.i(LOG_TAG, "Upload completed. Removed last uploaded file");
             uploadAFile();
         } else {
             //DO nothing as upload is in progress
