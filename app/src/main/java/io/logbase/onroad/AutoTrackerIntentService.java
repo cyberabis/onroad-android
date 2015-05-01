@@ -201,6 +201,9 @@ public class AutoTrackerIntentService extends IntentService implements
     }
 
     private boolean isMoving(){
+        //TODO
+        //If no location update for a long time
+        //If speed is less than walking speed
         return true;
     }
 

@@ -43,7 +43,7 @@ public class DataUploadIntentService extends IntentService {
         } else {
             directory = getFilesDir();
         }
-        if(directory.mkdirs())
+        if(directory.exists())
             files = directory.listFiles();
         if (files != null) {
             Log.i(LOG_TAG, "No. of files to upload: " + files.length);
@@ -81,12 +81,4 @@ public class DataUploadIntentService extends IntentService {
         return false;
     }
 
-    private File getStorageDir(Context context, String name) {
-        File file = new File(context.getExternalFilesDir(
-                Environment.DIRECTORY_DOCUMENTS), name);
-        if (!file.mkdirs()) {
-            Log.e(LOG_TAG, "Directory not created");
-        }
-        return file;
-    }
 }
