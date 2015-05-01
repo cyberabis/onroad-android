@@ -17,18 +17,18 @@ import android.util.Log;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.GoogleApiClient.ConnectionCallbacks;
+import com.google.android.gms.common.api.GoogleApiClient.OnConnectionFailedListener;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.common.api.GoogleApiClient.ConnectionCallbacks;
-import com.google.android.gms.common.api.GoogleApiClient.OnConnectionFailedListener;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Date;
 
-public class SensorTrackerIntentService extends IntentService implements
+public class AutoTrackerIntentService extends IntentService implements
         ConnectionCallbacks, OnConnectionFailedListener, SensorEventListener, LocationListener {
 
     private static final String LOG_TAG = "OnRoad Sensor Tracker";
@@ -45,7 +45,7 @@ public class SensorTrackerIntentService extends IntentService implements
     private File file = null;
     private FileOutputStream outputStream = null;
 
-    public SensorTrackerIntentService() {
+    public AutoTrackerIntentService() {
         super("SensorTrackerIntentService");
     }
 
@@ -161,7 +161,7 @@ public class SensorTrackerIntentService extends IntentService implements
             Log.i(LOG_TAG, "GPS or Sensors unavailable.");
             //Broadcast to activity that the service stopped due to state issue
             Intent localIntent = new Intent(Constants.BROADCAST_ACTION)
-                    .putExtra(Constants.SERVICE_STATUS, Constants.SENSOR_TRACKER_STOP_STATUS);
+                    .putExtra(Constants.SERVICE_STATUS, Constants.TRIP_TRACKER_STOP_STATUS);
             // Broadcasts the Intent to receivers in this app.
             LocalBroadcastManager.getInstance(this).sendBroadcast(localIntent);
         }

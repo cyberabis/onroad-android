@@ -37,7 +37,11 @@
         </activity>
 
         <service
-            android:name=".SensorTrackerIntentService"
+            android:name=".TripTrackerIntentService"
+            android:exported="false" >
+        </service>
+        <service
+            android:name=".AutoTrackerIntentService"
             android:exported="false" >
         </service>
         <service

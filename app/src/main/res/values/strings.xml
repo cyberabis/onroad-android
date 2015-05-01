@@ -4,8 +4,12 @@
     <string name="action_user">User</string>
     <string name="pref_file_key">onroad</string>
     <string name="username_key">onroad_user</string>
-    <string name="toggle_mode_key">toggle_mode</string>
+    <string name="toggle_trip_mode_key">trip_mode</string>
+    <string name="toggle_auto_mode_key">auto_mode</string>
+    <string name="upload_status_key">upload_status</string>
     <string name="trip_name">trip_name</string>
+    <string name="auto_mode_key">auto_mode</string>
+
 
     <string name="flash_msg">RIDE SAFE, \nRIDE EFFICIENT.</string>
     <string name="start_button">Start</string>
@@ -21,14 +25,17 @@
     <string name="trip_name_hint">Provide a name for this trip</string>
     <string name="toggle_trip_start_button">Start Trip</string>
     <string name="toggle_trip_stop_button">Stop Trip</string>
-    <string name="sync_button">Upload data</string>
-    <string name="sync_progress_msg">Uploading</string>
+    <string name="upload_start_button">Upload data</string>
+    <string name="upload_stop_button">Uploading</string>
+    <string name="toggle_auto_start_button">Start Auto Mode</string>
+    <string name="toggle_auto_stop_button">Stop Auto Mode</string>
     <string name="training_header">Training Controls</string>
     <string name="speed_bump_button">Speed bump</string>
     <string name="pothole_button">Pothole</string>
     <string name="acc_button">Harsh Accel.</string>
     <string name="brk_button">Harsh Braking</string>
     <string name="turn_button">Harsh Turn</string>
-    <string name="sensor_alert">Accelerometer, Gyroscope and GPS needs to be enabled.</string>
+    <string name="trip_alert">Accelerometer, Gyroscope and GPS needs to be enabled.</string>
     <string name="upload_alert">Either internet not connected or trip is running.</string>
+    <string name="auto_alert">Auto Mode has stopped.</string>
 </resources>
