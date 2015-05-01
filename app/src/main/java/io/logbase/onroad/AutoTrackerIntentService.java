@@ -10,6 +10,8 @@ import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.location.Location;
 import android.location.LocationManager;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.os.Environment;
 import android.support.v4.content.LocalBroadcastManager;
@@ -93,7 +95,12 @@ public class AutoTrackerIntentService extends IntentService implements
                 if(isMoving())
                     startRecording();
                 else {
-                    //TODO upload any files if internet connected
+                    ConnectivityManager cm = (ConnectivityManager) this.getSystemService(Context.CONNECTIVITY_SERVICE);
+                    NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+                    boolean networkAvailable = activeNetwork != null &&
+                            activeNetwork.isConnectedOrConnecting();
+                    if(networkAvailable)
+                        uploadFiles();
                 }
                 //Read flag again
                 SharedPreferences sharedPref = this.getSharedPreferences(getString(R.string.pref_file_key),
@@ -116,6 +123,10 @@ public class AutoTrackerIntentService extends IntentService implements
             LocalBroadcastManager.getInstance(this).sendBroadcast(localIntent);
         }
         Log.i(LOG_TAG, "Auto tracker service stopped.");
+    }
+
+    private void uploadFiles() {
+        //TODO upload files
     }
 
     private void startRecording(){
