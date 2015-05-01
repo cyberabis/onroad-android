@@ -1,7 +1,9 @@
 package io.logbase.onroad;
 
 import android.app.IntentService;
+import android.content.Context;
 import android.content.Intent;
+import android.os.Environment;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
@@ -33,24 +35,37 @@ public class DataUploadIntentService extends IntentService {
                 Regions.US_EAST_1
         );
         TransferManager transferManager = new TransferManager(credentialsProvider);
-        File directory = getFilesDir();
-        File[] files = directory.listFiles();
-        Log.i(LOG_TAG, "No. of files to upload: " + files.length);
-        for(int i=0; i<files.length; i++) {
-            Log.i(LOG_TAG, " Uploading file name: " + files[i].getName());
-            //TODO compress and upload file
-            Upload upload = transferManager.upload(Constants.S3_BUCKET_NAME, files[i].getName(), files[i]);
-            //If upload complete, remove the file.
-            while(!upload.isDone()) {
-                try {
-                    Thread.sleep(UPLOAD_SLEEP_FREQ);
-                } catch (Exception e) {
-                    Log.e(LOG_TAG, "Interrupted while sleeping : " + e);
-                }
-            }
-            files[i].delete();
+
+        File directory = null;
+        File[] files = null;
+        if(isExternalStorageWritable()) {
+            directory = this.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS);
+        } else {
+            directory = getFilesDir();
         }
-        Log.i(LOG_TAG, "Data upload completed.");
+        if(directory.mkdirs())
+            files = directory.listFiles();
+        if (files != null) {
+            Log.i(LOG_TAG, "No. of files to upload: " + files.length);
+            for(int i=0; i<files.length; i++) {
+                Log.i(LOG_TAG, " Uploading file name: " + files[i].getName());
+                //TODO compress and upload file
+                Upload upload = transferManager.upload(Constants.S3_BUCKET_NAME, files[i].getName(), files[i]);
+                //If upload complete, remove the file.
+                while(!upload.isDone()) {
+                    try {
+                        Thread.sleep(UPLOAD_SLEEP_FREQ);
+                        Log.i(LOG_TAG, "Waiting for upload to complete...");
+                    } catch (Exception e) {
+                        Log.e(LOG_TAG, "Interrupted while sleeping : " + e);
+                    }
+                }
+                files[i].delete();
+            }
+            Log.i(LOG_TAG, "Data upload completed.");
+        } else
+            Log.i(LOG_TAG, "Nothing to upload");
+
         //Broadcast to enable button.
         Intent localIntent = new Intent(Constants.BROADCAST_ACTION)
                 .putExtra(Constants.SERVICE_STATUS, Constants.DATA_UPLOAD_DONE_STATUS);
@@ -58,4 +73,20 @@ public class DataUploadIntentService extends IntentService {
         LocalBroadcastManager.getInstance(this).sendBroadcast(localIntent);
     }
 
+    private boolean isExternalStorageWritable() {
+        String state = Environment.getExternalStorageState();
+        if (Environment.MEDIA_MOUNTED.equals(state)) {
+            return true;
+        }
+        return false;
+    }
+
+    private File getStorageDir(Context context, String name) {
+        File file = new File(context.getExternalFilesDir(
+                Environment.DIRECTORY_DOCUMENTS), name);
+        if (!file.mkdirs()) {
+            Log.e(LOG_TAG, "Directory not created");
+        }
+        return file;
+    }
 }

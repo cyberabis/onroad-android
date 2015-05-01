@@ -11,6 +11,7 @@ import android.hardware.SensorManager;
 import android.location.Location;
 import android.location.LocationManager;
 import android.os.Bundle;
+import android.os.Environment;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
@@ -24,16 +25,16 @@ import com.google.android.gms.common.api.GoogleApiClient.OnConnectionFailedListe
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.Date;
 
 public class SensorTrackerIntentService extends IntentService implements
         ConnectionCallbacks, OnConnectionFailedListener, SensorEventListener, LocationListener {
 
     private static final String LOG_TAG = "OnRoad Sensor Tracker";
-    private static final int FREQUENCY_MILLIS = 1000;
+    private static final int FREQUENCY_MILLIS = 100;
     private GoogleApiClient mGoogleApiClient;
     private static boolean runService = true;
-    private FileOutputStream outputStream = null;
     private Location lastLocation = null;
     private SensorEvent lastAccelerometerEvent = null;
     private SensorEvent lastGyroscopeEvent = null;
@@ -41,6 +42,8 @@ public class SensorTrackerIntentService extends IntentService implements
     private long lastGyroscopeEventTime = 0;
     private long lastLocationTime = 0;
     private static final boolean FIXED_FREQ_WRITE = true;
+    private File file = null;
+    private FileOutputStream outputStream = null;
 
     public SensorTrackerIntentService() {
         super("SensorTrackerIntentService");
@@ -59,11 +62,20 @@ public class SensorTrackerIntentService extends IntentService implements
         //Check is GPS, sensors are available
         if( lm.isProviderEnabled(LocationManager.GPS_PROVIDER) && (accelerometer != null)
                 && (gyroscope != null) ){
-            runService = true;
             //Open file handle
             String tripName = intent.getStringExtra(Constants.TRIP_NAME_EXTRA);
             try {
-                outputStream = openFileOutput(tripName, Context.MODE_APPEND);
+                //outputStream = openFileOutput(tripName, Context.MODE_APPEND);
+                //Use external storage is available
+                if(isExternalStorageWritable()){
+                    file = getStorageFile(this, tripName);
+                } else {
+                    file = new File(this.getFilesDir(), tripName);
+                }
+                if (file != null) {
+                    outputStream = new FileOutputStream(file);
+                    runService = true;
+                }
             } catch (Exception e) {
                 Log.e(LOG_TAG, "Error opening file: " + e);
             }
@@ -130,14 +142,14 @@ public class SensorTrackerIntentService extends IntentService implements
                     runService = false;
                 }
             }
-            //Unregister listeners, recording complete
+            //After loop: Unregister listeners, recording complete
             LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
             mSensorManager.unregisterListener(this);
             mGoogleApiClient.disconnect();
             //Close outputstream
             if(outputStream != null) {
-                File file = new File(this.getFilesDir(), tripName);
-                Log.i(LOG_TAG, "Wrote file of space: " + file.length());
+                if(file != null)
+                    Log.i(LOG_TAG, "Wrote file of space: " + file.length());
                 try {
                     outputStream.close();
                 } catch (Exception e) {
@@ -250,5 +262,31 @@ public class SensorTrackerIntentService extends IntentService implements
                 Log.e(LOG_TAG, "Error while writing file: " + e);
             }
         }
+    }
+
+    private boolean isExternalStorageWritable() {
+        String state = Environment.getExternalStorageState();
+        if (Environment.MEDIA_MOUNTED.equals(state)) {
+            return true;
+        }
+        return false;
+    }
+
+    private File getStorageFile(Context context, String name) {
+        File file = new File(context.getExternalFilesDir(
+                Environment.DIRECTORY_DOCUMENTS), name);
+        boolean isFileCreated = false;
+        try {
+            if (file.createNewFile())
+                isFileCreated = true;
+            else
+                Log.e(LOG_TAG, "Directory not created");
+        } catch (IOException e) {
+            Log.e(LOG_TAG, "Exception while creating file");
+        }
+        if (isFileCreated)
+            return file;
+        else
+            return null;
     }
 }
