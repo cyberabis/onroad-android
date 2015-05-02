@@ -170,7 +170,7 @@ public class AutoTrackerIntentService extends IntentService implements
             files = directory.listFiles(new FilenameFilter() {
                 @Override
                 public boolean accept(File dir, String name) {
-                    return name.toLowerCase().endsWith(".auto.zip");
+                    return name.toLowerCase().endsWith("_auto.zip");
                 }
             });
         if ( (files != null) && (files.length > 0) ) {
@@ -197,10 +197,10 @@ public class AutoTrackerIntentService extends IntentService implements
 
         boolean record = false;
         //Open file handle
-        tripName = "auto_trip_";
+        tripName = "trip_";
         SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd_HHmmss");
         String timestamp = sdf.format(new Date());
-        tripName = tripName + timestamp;
+        tripName = tripName + timestamp + "_auto";
         try {
             if(isExternalStorageWritable()){
                 file = getStorageFile(this, tripName);
@@ -263,8 +263,16 @@ public class AutoTrackerIntentService extends IntentService implements
                     lastGyroscopeEvent = null;
                 }
             }
-            if(!isMoving())
+            //Read flag again
+            SharedPreferences sharedPref = this.getSharedPreferences(getString(R.string.pref_file_key),
+                    Context.MODE_PRIVATE);
+            String toggleMode = sharedPref.getString(getString(R.string.toggle_auto_mode_key), null);
+            if ((toggleMode != null) && (toggleMode.equals(getString(R.string.toggle_auto_start_button)))) {
                 record = false;
+            }
+            if((record)&&(!isMoving()))
+                record = false;
+
         }
         //After loop: Unregister listeners, recording complete
         mSensorManager.unregisterListener(this);
@@ -275,7 +283,7 @@ public class AutoTrackerIntentService extends IntentService implements
             if(file != null) {
                 String filePath = file.getPath();
                 Log.i(LOG_TAG, "Wrote file of space: " + file.length() + " for: " + filePath);
-                ZipUtils.zipFile(file, filePath + ".auto.zip");
+                ZipUtils.zipFile(file, filePath + ".zip");
                 file.delete();
             }
             try {
@@ -299,11 +307,13 @@ public class AutoTrackerIntentService extends IntentService implements
         for(Long time: speeds.keySet())
             sumSpeed = sumSpeed + speeds.get(time);
         float avgSpeed = sumSpeed / speeds.size();
-        if(timeElapsed > NOT_MOVING_ELAPSE_MILLIS)
+        if(timeElapsed > NOT_MOVING_ELAPSE_MILLIS) {
+            Log.i(LOG_TAG, "Not moving, location unchanged.");
             return false;
-        else if (avgSpeed < NOT_MOVING_AVG_SPEED)
+        } else if (avgSpeed < NOT_MOVING_AVG_SPEED) {
+            Log.i(LOG_TAG, "Not moving, avg speed is too low: " + avgSpeed);
             return false;
-        else
+        } else
             return true;
     }
 
@@ -400,12 +410,14 @@ public class AutoTrackerIntentService extends IntentService implements
         }
         //Get current ts
         long currentWindowStart = new Date().getTime() - NOT_MOVING_ELAPSE_MILLIS;
-        long firstKey = speeds.firstKey();
-        if(firstKey < currentWindowStart){
-            //Get a tail map
-            Log.i(LOG_TAG, "limiting speeds map withing window");
-            SortedMap newSpeeds = speeds.tailMap(currentWindowStart);
-            speeds = newSpeeds;
+        if (speeds.size() > 0) {
+            long firstKey = speeds.firstKey();
+            if(firstKey < currentWindowStart){
+                //Get a tail map
+                Log.i(LOG_TAG, "limiting speeds map withing window");
+                SortedMap newSpeeds = speeds.tailMap(currentWindowStart);
+                speeds = newSpeeds;
+            }
         }
         if(location.getSpeed() < SPEED_NOISE_CUTOFF) {
             speeds.put(ts, location.getSpeed());
