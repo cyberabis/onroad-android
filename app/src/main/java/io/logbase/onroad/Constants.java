@@ -19,4 +19,9 @@ public final class Constants {
 
     public static final String S3_BUCKET_NAME = "onroad";
 
+    public static final String LOCATION_EVENT_TYPE = "location";
+
+    public static final String ACCELEROMETER_EVENT_TYPE = "accelerometer";
+
+    public static final String GYROSCOPE_EVENT_TYPE = "gyroscope";
 }

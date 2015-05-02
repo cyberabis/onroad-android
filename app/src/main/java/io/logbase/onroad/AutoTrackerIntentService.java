@@ -28,14 +28,21 @@ import com.google.android.gms.common.api.GoogleApiClient.OnConnectionFailedListe
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
+import com.google.gson.Gson;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.SortedMap;
 import java.util.TreeMap;
+
+import io.logbase.onroad.models.AccelerometerEvent;
+import io.logbase.onroad.models.GyroscopeEvent;
+import io.logbase.onroad.models.LocationEvent;
+import io.logbase.onroad.utils.ZipUtils;
 
 public class AutoTrackerIntentService extends IntentService implements
         ConnectionCallbacks, OnConnectionFailedListener, SensorEventListener, LocationListener {
@@ -64,6 +71,8 @@ public class AutoTrackerIntentService extends IntentService implements
     private SortedMap<Long, Float> speeds = new TreeMap<Long, Float>();
     private Upload upload = null;
     private File uploadFile = null;
+    private String userId = null;
+    private String tripName = null;
 
     public AutoTrackerIntentService() {
         super("AutoTrackerIntentService");
@@ -82,6 +91,10 @@ public class AutoTrackerIntentService extends IntentService implements
         //Check is GPS, sensors are available
         if( lm.isProviderEnabled(LocationManager.GPS_PROVIDER) && (accelerometer != null)
                 && (gyroscope != null) ){
+
+            SharedPreferences sharedPref = this.getSharedPreferences(getString(R.string.pref_file_key),
+                    Context.MODE_PRIVATE);
+            userId = sharedPref.getString(getString(R.string.username_key), null);
 
             mGoogleApiClient = new GoogleApiClient.Builder(this)
                     .addConnectionCallbacks(this)
@@ -109,8 +122,6 @@ public class AutoTrackerIntentService extends IntentService implements
                         uploadFiles();
                 }
                 //Read flag again
-                SharedPreferences sharedPref = this.getSharedPreferences(getString(R.string.pref_file_key),
-                        Context.MODE_PRIVATE);
                 String toggleMode = sharedPref.getString(getString(R.string.toggle_auto_mode_key), null);
                 if ((toggleMode != null) && (toggleMode.equals(getString(R.string.toggle_auto_start_button)))) {
                     runService = false;
@@ -156,7 +167,12 @@ public class AutoTrackerIntentService extends IntentService implements
             directory = getFilesDir();
         }
         if (directory.exists())
-            files = directory.listFiles();
+            files = directory.listFiles(new FilenameFilter() {
+                @Override
+                public boolean accept(File dir, String name) {
+                    return name.toLowerCase().endsWith(".auto.zip");
+                }
+            });
         if ( (files != null) && (files.length > 0) ) {
             CognitoCachingCredentialsProvider credentialsProvider = new CognitoCachingCredentialsProvider(
                     this,
@@ -181,7 +197,7 @@ public class AutoTrackerIntentService extends IntentService implements
 
         boolean record = false;
         //Open file handle
-        String tripName = "auto_trip_";
+        tripName = "auto_trip_";
         SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd_HHmmss");
         String timestamp = sdf.format(new Date());
         tripName = tripName + timestamp;
@@ -216,34 +232,34 @@ public class AutoTrackerIntentService extends IntentService implements
                 if(lastLocation != null) {
                     double lat = lastLocation.getLatitude();
                     double lon = lastLocation.getLongitude();
-                    //long ts = lastLocation.getTime();
                     long ts = lastLocationTime;
-                    Log.i(LOG_TAG, "Location values: " + ts + "|" + lastLocation.getLatitude() + "|"
-                            + lastLocation.getLongitude() + "|" + lastLocation.getSpeed());
-                    writeToFile("loc|" + String.valueOf(ts) + "|" + String.valueOf(lat) + "|" + String.valueOf(lon)  + "|"
-                            + String.valueOf(lastLocation.getSpeed()));
+                    double speed = lastLocation.getSpeed();
+                    LocationEvent le = new LocationEvent(Constants.LOCATION_EVENT_TYPE, ts, userId, tripName, lat, lon, speed);
+                    Gson gson = new Gson();
+                    String json = gson.toJson(le);
+                    writeToFile(json);
                     lastLocation = null;
                 }
                 if(lastAccelerometerEvent != null) {
                     float x = lastAccelerometerEvent.values[0];
                     float y = lastAccelerometerEvent.values[1];
                     float z = lastAccelerometerEvent.values[2];
-                    //long ts = lastAccelerometerEvent.timestamp;
                     long ts = lastAccelerometerEventTime;
-                    Log.i(LOG_TAG, "Accelerometer values: " + ts + "|" + x + "|" + y + "|" + z);
-                    writeToFile("acc|" + String.valueOf(ts) + "|" + String.valueOf(x) + "|"
-                            + String.valueOf(y) + "|" + String.valueOf(z));
+                    AccelerometerEvent ae = new AccelerometerEvent(Constants.ACCELEROMETER_EVENT_TYPE, ts, userId, tripName, x, y, z);
+                    Gson gson = new Gson();
+                    String json = gson.toJson(ae);
+                    writeToFile(json);
                     lastAccelerometerEvent = null;
                 }
                 if(lastGyroscopeEvent != null) {
                     float x = lastGyroscopeEvent.values[0];
                     float y = lastGyroscopeEvent.values[1];
                     float z = lastGyroscopeEvent.values[2];
-                    //long ts = lastGyroscopeEvent.timestamp;
                     long ts = lastGyroscopeEventTime;
-                    Log.i(LOG_TAG, "Gyroscope values: " + ts + "|" + x + "|" + y + "|" + z);
-                    writeToFile("gyr|" + String.valueOf(ts) + "|" + String.valueOf(x) + "|"
-                            + String.valueOf(y) + "|" + String.valueOf(z));
+                    GyroscopeEvent ge = new GyroscopeEvent(Constants.GYROSCOPE_EVENT_TYPE, ts, userId, tripName, x, y, z);
+                    Gson gson = new Gson();
+                    String json = gson.toJson(ge);
+                    writeToFile(json);
                     lastGyroscopeEvent = null;
                 }
             }
@@ -256,8 +272,12 @@ public class AutoTrackerIntentService extends IntentService implements
         lastGyroscopeEvent = null;
         //Close outputstream
         if(outputStream != null) {
-            if(file != null)
-                Log.i(LOG_TAG, "Wrote file of space: " + file.length());
+            if(file != null) {
+                String filePath = file.getPath();
+                Log.i(LOG_TAG, "Wrote file of space: " + file.length() + " for: " + filePath);
+                ZipUtils.zipFile(file, filePath + ".auto.zip");
+                file.delete();
+            }
             try {
                 outputStream.close();
             } catch (Exception e) {
@@ -330,11 +350,11 @@ public class AutoTrackerIntentService extends IntentService implements
                 float x = event.values[0];
                 float y = event.values[1];
                 float z = event.values[2];
-                //long ts = event.timestamp;
                 long ts = new Date().getTime();
-                Log.i(LOG_TAG, "Accelerometer values: " + ts + "|" + x + "|" + y + "|" + z);
-                writeToFile("acc|" + String.valueOf(ts) + "|" + String.valueOf(x) + "|"
-                        + String.valueOf(y) + "|" + String.valueOf(z));
+                AccelerometerEvent ae = new AccelerometerEvent(Constants.ACCELEROMETER_EVENT_TYPE, ts, userId, tripName, x, y, z);
+                Gson gson = new Gson();
+                String json = gson.toJson(ae);
+                writeToFile(json);
             } else {
                 lastAccelerometerEvent = event;
                 lastAccelerometerEventTime = new Date().getTime();
@@ -345,11 +365,11 @@ public class AutoTrackerIntentService extends IntentService implements
                 float x = event.values[0];
                 float y = event.values[1];
                 float z = event.values[2];
-                //long ts = event.timestamp;
                 long ts = new Date().getTime();
-                Log.i(LOG_TAG, "Gyroscope values: " + ts + "|" + x + "|" + y + "|" + z);
-                writeToFile("gyr|" + String.valueOf(ts) + "|" + String.valueOf(x) + "|"
-                        + String.valueOf(y) + "|" + String.valueOf(z));
+                GyroscopeEvent ge = new GyroscopeEvent(Constants.GYROSCOPE_EVENT_TYPE, ts, userId, tripName, x, y, z);
+                Gson gson = new Gson();
+                String json = gson.toJson(ge);
+                writeToFile(json);
             } else {
                 lastGyroscopeEvent = event;
                 lastGyroscopeEventTime = new Date().getTime();
@@ -367,12 +387,13 @@ public class AutoTrackerIntentService extends IntentService implements
         double lat = location.getLatitude();
         double lon = location.getLongitude();
         //long ts = location.getTime();
+        double speed = location.getSpeed();
         long ts = new Date().getTime();
         if(!FIXED_FREQ_WRITE) {
-            Log.i(LOG_TAG, "Location values: " + ts + "|" + location.getLatitude() + "|" + location.getLongitude()
-                    + "|" + location.getSpeed());
-            writeToFile("loc|" + String.valueOf(ts) + "|" + String.valueOf(lat) + "|" + String.valueOf(lon) + "|"
-                    + String.valueOf(location.getSpeed()));
+            LocationEvent le = new LocationEvent(Constants.LOCATION_EVENT_TYPE, ts, userId, tripName, lat, lon, speed);
+            Gson gson = new Gson();
+            String json = gson.toJson(le);
+            writeToFile(json);
         } else {
             lastLocation = location;
             lastLocationTime = new Date().getTime();
@@ -393,6 +414,7 @@ public class AutoTrackerIntentService extends IntentService implements
     }
 
     private void writeToFile(String data){
+        Log.i(LOG_TAG, "Going to write: " + data);
         if(outputStream != null) {
             try {
                 outputStream.write(data.getBytes());
@@ -428,4 +450,5 @@ public class AutoTrackerIntentService extends IntentService implements
         else
             return null;
     }
+
 }
