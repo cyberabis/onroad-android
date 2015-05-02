@@ -47,11 +47,11 @@ import io.logbase.onroad.utils.ZipUtils;
 public class AutoTrackerIntentService extends IntentService implements
         ConnectionCallbacks, OnConnectionFailedListener, SensorEventListener, LocationListener {
 
-    private static final String LOG_TAG = "OnRoad Sensor Tracker";
+    private static final String LOG_TAG = "OnRoad Auto Tracker";
     private static final int AUTO_FREQUENCY_MILLIS = 10 * 1000;
     private static final int FREQUENCY_MILLIS = 100;
-    private static final long NOT_MOVING_ELAPSE_MILLIS = 5 * 60 * 1000;
-    private static final float NOT_MOVING_AVG_SPEED = 6;
+    private static final long NOT_MOVING_ELAPSE_MILLIS =  15 * 1000;
+    private static final float NOT_MOVING_AVG_SPEED = 1.6f;
     private static final float SPEED_NOISE_CUTOFF = 55.55f;
     private GoogleApiClient mGoogleApiClient;
     private static boolean runService = true;
@@ -407,6 +407,7 @@ public class AutoTrackerIntentService extends IntentService implements
             lastLocation = location;
             lastLocationTime = new Date().getTime();
         }
+        //For motion detection
         //Get current ts
         long currentWindowStart = new Date().getTime() - NOT_MOVING_ELAPSE_MILLIS;
         if (speeds.size() > 0) {
