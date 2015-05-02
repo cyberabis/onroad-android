@@ -272,7 +272,6 @@ public class AutoTrackerIntentService extends IntentService implements
             }
             if((record)&&(!isMoving()))
                 record = false;
-
         }
         //After loop: Unregister listeners, recording complete
         mSensorManager.unregisterListener(this);

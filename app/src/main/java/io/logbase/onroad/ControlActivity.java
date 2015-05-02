@@ -129,24 +129,30 @@ public class ControlActivity extends ActionBarActivity {
             toggleButton.setText(getString(R.string.toggle_trip_start_button));
             editText.setText("");
         } else {
-            //Start, next state is stop
-            //Save toggle mode
-            editor.putString(getString(R.string.toggle_trip_mode_key), getString(R.string.toggle_trip_stop_button));
-            //Save trip name in shared pref
-            editor.putString(getString(R.string.trip_name), editText.getText().toString());
-            editor.commit();
-            editText.setEnabled(false);
-            toggleButton.setText(getString(R.string.toggle_trip_stop_button));
-            Intent tripTrackerIntent = new Intent(this, TripTrackerIntentService.class);
-            String tripName = "trip_";
-            if ((editText.getText() != null) && (!editText.getText().toString().equals("")))
-                tripName = tripName + editText.getText().toString() + "_";
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd_HHmmss");
-            String timestamp = sdf.format(new Date());
-            tripName = tripName + timestamp;
-            Log.i(LOG_TAG, "Trip Name: " + tripName);
-            tripTrackerIntent.putExtra(Constants.TRIP_NAME_EXTRA, tripName);
-            startService(tripTrackerIntent);
+            String autoMode = sharedPref.getString(getString(R.string.toggle_auto_mode_key), null);
+            //if auto mode running, cannot start trip.
+            if( (autoMode != null) && (autoMode.equals(getString(R.string.toggle_auto_stop_button))) ){
+                Log.i(LOG_TAG, "Cannot start trip as auto mode is running.");
+            } else {
+                //Start, next state is stop
+                //Save toggle mode
+                editor.putString(getString(R.string.toggle_trip_mode_key), getString(R.string.toggle_trip_stop_button));
+                //Save trip name in shared pref
+                editor.putString(getString(R.string.trip_name), editText.getText().toString());
+                editor.commit();
+                editText.setEnabled(false);
+                toggleButton.setText(getString(R.string.toggle_trip_stop_button));
+                Intent tripTrackerIntent = new Intent(this, TripTrackerIntentService.class);
+                String tripName = "trip_";
+                if ((editText.getText() != null) && (!editText.getText().toString().equals("")))
+                    tripName = tripName + editText.getText().toString() + "_";
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd_HHmmss");
+                String timestamp = sdf.format(new Date());
+                tripName = tripName + timestamp;
+                Log.i(LOG_TAG, "Trip Name: " + tripName);
+                tripTrackerIntent.putExtra(Constants.TRIP_NAME_EXTRA, tripName);
+                startService(tripTrackerIntent);
+            }
         }
     }
 
@@ -165,14 +171,20 @@ public class ControlActivity extends ActionBarActivity {
             editor.commit();
             toggleButton.setText(getString(R.string.toggle_auto_start_button));
         } else {
-            //Start, next state is stop
-            //Save toggle mode
-            editor.putString(getString(R.string.toggle_auto_mode_key), getString(R.string.toggle_auto_stop_button));
-            editor.commit();
-            toggleButton.setText(getString(R.string.toggle_auto_stop_button));
-            //Start AutoIntentService
-            Intent autoTrackerIntent = new Intent(this, AutoTrackerIntentService.class);
-            startService(autoTrackerIntent);
+            //if tripmode running cannot start auto
+            String tripMode = sharedPref.getString(getString(R.string.toggle_trip_mode_key), null);
+            if( (tripMode != null) && (tripMode.equals(getString(R.string.toggle_trip_stop_button))) ) {
+                Log.i(LOG_TAG, "Cannot start auto as trip is running");
+            } else {
+                //Start, next state is stop
+                //Save toggle mode
+                editor.putString(getString(R.string.toggle_auto_mode_key), getString(R.string.toggle_auto_stop_button));
+                editor.commit();
+                toggleButton.setText(getString(R.string.toggle_auto_stop_button));
+                //Start AutoIntentService
+                Intent autoTrackerIntent = new Intent(this, AutoTrackerIntentService.class);
+                startService(autoTrackerIntent);
+            }
         }
     }
 
@@ -240,6 +252,10 @@ public class ControlActivity extends ActionBarActivity {
                 Context.MODE_PRIVATE);
         String toggleMode = sharedPref.getString(getString(R.string.toggle_trip_mode_key), null);
         if ((toggleMode != null) && (toggleMode.equals(getString(R.string.toggle_trip_stop_button))))
+            uploadReady = false;
+        //not ready for upload if auto mode running
+        String autoMode = sharedPref.getString(getString(R.string.toggle_auto_mode_key), null);
+        if( (autoMode != null) && (autoMode.equals(getString(R.string.toggle_auto_stop_button))) )
             uploadReady = false;
         if(uploadReady) {
             ConnectivityManager cm = (ConnectivityManager) this.getSystemService(Context.CONNECTIVITY_SERVICE);
