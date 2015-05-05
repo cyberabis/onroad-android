@@ -290,4 +290,32 @@ public class ControlActivity extends ActionBarActivity {
         }
     }
 
+    public void speedBump(View view) {
+        //TODO
+        SharedPreferences sharedPref = this.getSharedPreferences(getString(R.string.pref_file_key),
+                Context.MODE_PRIVATE);
+        String tripMode = sharedPref.getString(getString(R.string.toggle_trip_mode_key), null);
+        if( (tripMode != null) && (tripMode.equals(getString(R.string.toggle_trip_stop_button))) ) {
+
+        } else {
+            Log.i(LOG_TAG, "Cannot start auto as trip is not running");
+        }
+    }
+
+    public void pothole(View view) {
+        //TODO
+    }
+
+    public void harshAcc(View view) {
+        //TODO
+    }
+
+    public void harshBrk(View view) {
+        //TODO
+    }
+
+    public void harshTurn(View view) {
+        //TODO
+    }
+
 }

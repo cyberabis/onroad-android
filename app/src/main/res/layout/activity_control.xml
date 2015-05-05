@@ -80,7 +80,8 @@
         android:text="@string/speed_bump_button"
         android:id="@+id/speed_bump"
         android:layout_marginTop="30dip"
-        android:background="#FFFFFF" />
+        android:background="#FFFFFF"
+        android:onClick="speedBump" />
 
     <Button
         android:layout_width="150dp"
@@ -90,7 +91,8 @@
         android:text="@string/pothole_button"
         android:id="@+id/pothole"
         android:layout_marginTop="30dip"
-        android:background="#FFFFFF" />
+        android:background="#FFFFFF"
+        android:onClick="pothole" />
 
     <Button
         android:layout_width="150dp"
@@ -100,7 +102,8 @@
         android:text="@string/acc_button"
         android:id="@+id/harsh_acc"
         android:layout_marginTop="30dip"
-        android:background="#FFFFFF" />
+        android:background="#FFFFFF"
+        android:onClick="harshAcc" />
 
     <Button
         android:layout_width="150dp"
@@ -110,7 +113,8 @@
         android:text="@string/brk_button"
         android:id="@+id/harsh_brk"
         android:layout_marginTop="30dip"
-        android:background="#FFFFFF" />
+        android:background="#FFFFFF"
+        android:onClick="harshBrk" />
 
     <Button
         android:layout_width="150dp"
@@ -120,6 +124,7 @@
         android:text="@string/turn_button"
         android:id="@+id/harsh_turn"
         android:layout_marginTop="30dip"
-        android:background="#FFFFFF" />
+        android:background="#FFFFFF"
+        android:onClick="harshTurn"/>
 
 </RelativeLayout>
