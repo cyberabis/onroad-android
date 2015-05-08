@@ -15,6 +15,7 @@ import android.os.Environment;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
+import com.firebase.client.Firebase;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.LocationListener;
@@ -31,7 +32,10 @@ import java.util.Date;
 
 import io.logbase.onroad.models.AccelerometerEvent;
 import io.logbase.onroad.models.GyroscopeEvent;
+import io.logbase.onroad.models.LinearAccelerometerEvent;
 import io.logbase.onroad.models.LocationEvent;
+import io.logbase.onroad.models.MagneticFieldEvent;
+import io.logbase.onroad.models.OrientationEvent;
 import io.logbase.onroad.utils.ZipUtils;
 
 public class TripTrackerIntentService extends IntentService implements
@@ -52,6 +56,15 @@ public class TripTrackerIntentService extends IntentService implements
     private FileOutputStream outputStream = null;
     private String userId = null;
     private String tripName = null;
+    private static final boolean USE_FIREBASE = false;
+    private static final String FIREBASE_URL = "https://glaring-torch-2138.firebaseio.com/events";
+    private Firebase firebaseRef = null;
+    private SensorEvent lastLinearAccelerometerEvent = null;
+    private long lastLinearAccelerometerEventTime = 0;
+    private SensorEvent lastOrientationEvent = null;
+    private long lastOrientationEventTime = 0;
+    private SensorEvent lastMagneticFieldEvent = null;
+    private long lastMagneticFieldEventTime = 0;
 
     public TripTrackerIntentService() {
         super("TripTrackerIntentService");
@@ -66,6 +79,9 @@ public class TripTrackerIntentService extends IntentService implements
         SensorManager mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         Sensor accelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         Sensor gyroscope = mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
+        Sensor linearAccelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
+        Sensor orientation = mSensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION);
+        Sensor magneticField = mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
 
         //Check is GPS, sensors are available
         if( lm.isProviderEnabled(LocationManager.GPS_PROVIDER) && (accelerometer != null)
@@ -101,6 +117,18 @@ public class TripTrackerIntentService extends IntentService implements
             //Register sensor listeners
             mSensorManager.registerListener(this, gyroscope, FREQUENCY_MILLIS * 1000);
             mSensorManager.registerListener(this, accelerometer, FREQUENCY_MILLIS * 1000);
+            if(linearAccelerometer != null)
+                mSensorManager.registerListener(this, linearAccelerometer, FREQUENCY_MILLIS * 1000);
+            if(orientation != null)
+                mSensorManager.registerListener(this, orientation, FREQUENCY_MILLIS * 1000);
+            if(magneticField != null)
+                mSensorManager.registerListener(this, magneticField, FREQUENCY_MILLIS * 1000);
+
+            //Emit events to firebase
+            if(USE_FIREBASE) {
+                Firebase.setAndroidContext(this);
+                firebaseRef = new Firebase(FIREBASE_URL);
+            }
 
             while(runService) {
                 //Sleep for a frequency
@@ -144,6 +172,42 @@ public class TripTrackerIntentService extends IntentService implements
                         String json = gson.toJson(ge);
                         writeToFile(json);
                         lastGyroscopeEvent = null;
+                    }
+                    if(lastLinearAccelerometerEvent != null) {
+                        float x = lastLinearAccelerometerEvent.values[0];
+                        float y = lastLinearAccelerometerEvent.values[1];
+                        float z = lastLinearAccelerometerEvent.values[2];
+                        long ts = lastLinearAccelerometerEventTime;
+                        LinearAccelerometerEvent la = new LinearAccelerometerEvent(Constants.LINEAR_ACCELEROMETER_EVENT_TYPE,
+                                ts, userId, tripName, x, y, z);
+                        Gson gson = new Gson();
+                        String json = gson.toJson(la);
+                        writeToFile(json);
+                        lastLinearAccelerometerEvent = null;
+                    }
+                    if(lastOrientationEvent != null) {
+                        float azimuthAngle = lastOrientationEvent.values[0];
+                        float pitchAngle = lastOrientationEvent.values[1];
+                        float rollAngle = lastOrientationEvent.values[2];
+                        long ts = lastLinearAccelerometerEventTime;
+                        OrientationEvent oe = new OrientationEvent(Constants.ORIENTATION_EVENT_TYPE,
+                                ts, userId, tripName, azimuthAngle, pitchAngle, rollAngle);
+                        Gson gson = new Gson();
+                        String json = gson.toJson(oe);
+                        writeToFile(json);
+                        lastOrientationEvent = null;
+                    }
+                    if(lastMagneticFieldEvent != null) {
+                        float x = lastMagneticFieldEvent.values[0];
+                        float y = lastMagneticFieldEvent.values[1];
+                        float z = lastMagneticFieldEvent.values[2];
+                        long ts = lastMagneticFieldEventTime;
+                        MagneticFieldEvent mf = new MagneticFieldEvent(Constants.MAGNETIC_FIELD_EVENT_TYPE,
+                                ts, userId, tripName, x, y, z);
+                        Gson gson = new Gson();
+                        String json = gson.toJson(mf);
+                        writeToFile(json);
+                        lastMagneticFieldEvent = null;
                     }
                 }
 
@@ -246,6 +310,53 @@ public class TripTrackerIntentService extends IntentService implements
                 lastGyroscopeEventTime = new Date().getTime();
             }
         }
+        if(event.sensor.getType() == Sensor.TYPE_LINEAR_ACCELERATION) {
+            if(!FIXED_FREQ_WRITE) {
+                float x = event.values[0];
+                float y = event.values[1];
+                float z = event.values[2];
+                long ts = new Date().getTime();
+                LinearAccelerometerEvent la = new LinearAccelerometerEvent(Constants.LINEAR_ACCELEROMETER_EVENT_TYPE, ts, userId, tripName, x, y, z);
+                Gson gson = new Gson();
+                String json = gson.toJson(la);
+                writeToFile(json);
+            } else {
+                lastLinearAccelerometerEvent = event;
+                lastLinearAccelerometerEventTime = new Date().getTime();
+            }
+        }
+        if(event.sensor.getType() == Sensor.TYPE_ORIENTATION) {
+            if(!FIXED_FREQ_WRITE) {
+                float azimuthAngle = event.values[0];
+                float pitchAngle = event.values[1];
+                float rollAngle = event.values[2];
+                long ts = new Date().getTime();
+                OrientationEvent oe = new OrientationEvent(Constants.ORIENTATION_EVENT_TYPE,
+                        ts, userId, tripName, azimuthAngle, pitchAngle, rollAngle);
+                Gson gson = new Gson();
+                String json = gson.toJson(oe);
+                writeToFile(json);
+            } else {
+                lastOrientationEvent = event;
+                lastOrientationEventTime = new Date().getTime();
+            }
+        }
+        if(event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) {
+            if(!FIXED_FREQ_WRITE) {
+                float x = event.values[0];
+                float y = event.values[1];
+                float z = event.values[2];
+                long ts = new Date().getTime();
+                MagneticFieldEvent mf = new MagneticFieldEvent(Constants.MAGNETIC_FIELD_EVENT_TYPE,
+                        ts, userId, tripName, x, y, z);
+                Gson gson = new Gson();
+                String json = gson.toJson(mf);
+                writeToFile(json);
+            } else {
+                lastMagneticFieldEvent = event;
+                lastMagneticFieldEventTime = new Date().getTime();
+            }
+        }
     }
 
     @Override
@@ -281,6 +392,8 @@ public class TripTrackerIntentService extends IntentService implements
                 Log.e(LOG_TAG, "Error while writing file: " + e);
             }
         }
+        if(USE_FIREBASE)
+            firebaseRef.push().setValue(data);
     }
 
     private boolean isExternalStorageWritable() {

@@ -24,4 +24,11 @@ public final class Constants {
     public static final String ACCELEROMETER_EVENT_TYPE = "accelerometer";
 
     public static final String GYROSCOPE_EVENT_TYPE = "gyroscope";
+
+    public static final String LINEAR_ACCELEROMETER_EVENT_TYPE = "linear_acceleration";
+
+    public static final String ORIENTATION_EVENT_TYPE = "orientation";
+
+    public static final String MAGNETIC_FIELD_EVENT_TYPE = "magnetic_field";
+
 }
