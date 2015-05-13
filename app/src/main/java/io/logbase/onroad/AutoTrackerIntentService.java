@@ -16,11 +16,13 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
+import android.os.PowerManager;
 
 import com.amazonaws.auth.CognitoCachingCredentialsProvider;
 import com.amazonaws.mobileconnectors.s3.transfermanager.TransferManager;
 import com.amazonaws.mobileconnectors.s3.transfermanager.Upload;
 import com.amazonaws.regions.Regions;
+import com.firebase.client.Firebase;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.GoogleApiClient.ConnectionCallbacks;
@@ -41,7 +43,10 @@ import java.util.TreeMap;
 
 import io.logbase.onroad.models.AccelerometerEvent;
 import io.logbase.onroad.models.GyroscopeEvent;
+import io.logbase.onroad.models.LinearAccelerometerEvent;
 import io.logbase.onroad.models.LocationEvent;
+import io.logbase.onroad.models.MagneticFieldEvent;
+import io.logbase.onroad.models.OrientationEvent;
 import io.logbase.onroad.utils.ZipUtils;
 
 public class AutoTrackerIntentService extends IntentService implements
@@ -73,6 +78,19 @@ public class AutoTrackerIntentService extends IntentService implements
     private File uploadFile = null;
     private String userId = null;
     private String tripName = null;
+    private static final boolean USE_FIREBASE = false;
+    private static final String FIREBASE_URL = "https://glaring-torch-2138.firebaseio.com/events";
+    private Firebase firebaseRef = null;
+    Sensor linearAccelerometer = null;
+    Sensor orientation = null;
+    Sensor magneticField = null;
+    private SensorEvent lastLinearAccelerometerEvent = null;
+    private long lastLinearAccelerometerEventTime = 0;
+    private SensorEvent lastOrientationEvent = null;
+    private long lastOrientationEventTime = 0;
+    private SensorEvent lastMagneticFieldEvent = null;
+    private long lastMagneticFieldEventTime = 0;
+    private android.os.PowerManager.WakeLock wakeLock = null;
 
     public AutoTrackerIntentService() {
         super("AutoTrackerIntentService");
@@ -87,10 +105,18 @@ public class AutoTrackerIntentService extends IntentService implements
         mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         accelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         gyroscope = mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
+        linearAccelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
+        orientation = mSensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION);
+        magneticField = mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
 
         //Check is GPS, sensors are available
         if( lm.isProviderEnabled(LocationManager.GPS_PROVIDER) && (accelerometer != null)
                 && (gyroscope != null) ){
+
+            //Acquire wake lock:
+            PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
+            wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "OnRoadWakelock");
+            wakeLock.acquire();
 
             SharedPreferences sharedPref = this.getSharedPreferences(getString(R.string.pref_file_key),
                     Context.MODE_PRIVATE);
@@ -103,6 +129,12 @@ public class AutoTrackerIntentService extends IntentService implements
                     .build();
             //GPS listener will be registered on connection
             mGoogleApiClient.connect();
+
+            //Emit events to firebase
+            if(USE_FIREBASE) {
+                Firebase.setAndroidContext(this);
+                firebaseRef = new Firebase(FIREBASE_URL);
+            }
 
             while(runService) {
                 //Sleep for a frequency
@@ -131,6 +163,8 @@ public class AutoTrackerIntentService extends IntentService implements
             LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
             mGoogleApiClient.disconnect();
             Log.i(LOG_TAG, "Disconnecting Google API, stopping sensor tracker service.");
+            //Release wakelock
+            wakeLock.release();
         } else {
             Log.i(LOG_TAG, "GPS or Sensors unavailable.");
             //Broadcast to activity that the service stopped due to state issue
@@ -197,7 +231,7 @@ public class AutoTrackerIntentService extends IntentService implements
 
         boolean record = false;
         //Open file handle
-        tripName = "trip_";
+        tripName = userId + "_trip_";
         SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd_HHmmss");
         String timestamp = sdf.format(new Date());
         tripName = tripName + timestamp + "_auto";
@@ -218,6 +252,12 @@ public class AutoTrackerIntentService extends IntentService implements
             //Register sensor listeners
             mSensorManager.registerListener(this, gyroscope, FREQUENCY_MILLIS * 1000);
             mSensorManager.registerListener(this, accelerometer, FREQUENCY_MILLIS * 1000);
+            if(linearAccelerometer != null)
+                mSensorManager.registerListener(this, linearAccelerometer, FREQUENCY_MILLIS * 1000);
+            if(orientation != null)
+                mSensorManager.registerListener(this, orientation, FREQUENCY_MILLIS * 1000);
+            if(magneticField != null)
+                mSensorManager.registerListener(this, magneticField, FREQUENCY_MILLIS * 1000);
         }
         while(record) {
             //Sleep for a frequency
@@ -261,6 +301,42 @@ public class AutoTrackerIntentService extends IntentService implements
                     String json = gson.toJson(ge);
                     writeToFile(json);
                     lastGyroscopeEvent = null;
+                }
+                if(lastLinearAccelerometerEvent != null) {
+                    float x = lastLinearAccelerometerEvent.values[0];
+                    float y = lastLinearAccelerometerEvent.values[1];
+                    float z = lastLinearAccelerometerEvent.values[2];
+                    long ts = lastLinearAccelerometerEventTime;
+                    LinearAccelerometerEvent la = new LinearAccelerometerEvent(Constants.LINEAR_ACCELEROMETER_EVENT_TYPE,
+                            ts, userId, tripName, x, y, z);
+                    Gson gson = new Gson();
+                    String json = gson.toJson(la);
+                    writeToFile(json);
+                    lastLinearAccelerometerEvent = null;
+                }
+                if(lastOrientationEvent != null) {
+                    float azimuthAngle = lastOrientationEvent.values[0];
+                    float pitchAngle = lastOrientationEvent.values[1];
+                    float rollAngle = lastOrientationEvent.values[2];
+                    long ts = lastLinearAccelerometerEventTime;
+                    OrientationEvent oe = new OrientationEvent(Constants.ORIENTATION_EVENT_TYPE,
+                            ts, userId, tripName, azimuthAngle, pitchAngle, rollAngle);
+                    Gson gson = new Gson();
+                    String json = gson.toJson(oe);
+                    writeToFile(json);
+                    lastOrientationEvent = null;
+                }
+                if(lastMagneticFieldEvent != null) {
+                    float x = lastMagneticFieldEvent.values[0];
+                    float y = lastMagneticFieldEvent.values[1];
+                    float z = lastMagneticFieldEvent.values[2];
+                    long ts = lastMagneticFieldEventTime;
+                    MagneticFieldEvent mf = new MagneticFieldEvent(Constants.MAGNETIC_FIELD_EVENT_TYPE,
+                            ts, userId, tripName, x, y, z);
+                    Gson gson = new Gson();
+                    String json = gson.toJson(mf);
+                    writeToFile(json);
+                    lastMagneticFieldEvent = null;
                 }
             }
             //Read flag again
@@ -306,6 +382,7 @@ public class AutoTrackerIntentService extends IntentService implements
         for(Long time: speeds.keySet())
             sumSpeed = sumSpeed + speeds.get(time);
         float avgSpeed = sumSpeed / speeds.size();
+
         if(timeElapsed > NOT_MOVING_ELAPSE_MILLIS) {
             Log.i(LOG_TAG, "Not moving, location unchanged.");
             return false;
@@ -384,6 +461,53 @@ public class AutoTrackerIntentService extends IntentService implements
                 lastGyroscopeEventTime = new Date().getTime();
             }
         }
+        if(event.sensor.getType() == Sensor.TYPE_LINEAR_ACCELERATION) {
+            if(!FIXED_FREQ_WRITE) {
+                float x = event.values[0];
+                float y = event.values[1];
+                float z = event.values[2];
+                long ts = new Date().getTime();
+                LinearAccelerometerEvent la = new LinearAccelerometerEvent(Constants.LINEAR_ACCELEROMETER_EVENT_TYPE, ts, userId, tripName, x, y, z);
+                Gson gson = new Gson();
+                String json = gson.toJson(la);
+                writeToFile(json);
+            } else {
+                lastLinearAccelerometerEvent = event;
+                lastLinearAccelerometerEventTime = new Date().getTime();
+            }
+        }
+        if(event.sensor.getType() == Sensor.TYPE_ORIENTATION) {
+            if(!FIXED_FREQ_WRITE) {
+                float azimuthAngle = event.values[0];
+                float pitchAngle = event.values[1];
+                float rollAngle = event.values[2];
+                long ts = new Date().getTime();
+                OrientationEvent oe = new OrientationEvent(Constants.ORIENTATION_EVENT_TYPE,
+                        ts, userId, tripName, azimuthAngle, pitchAngle, rollAngle);
+                Gson gson = new Gson();
+                String json = gson.toJson(oe);
+                writeToFile(json);
+            } else {
+                lastOrientationEvent = event;
+                lastOrientationEventTime = new Date().getTime();
+            }
+        }
+        if(event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) {
+            if(!FIXED_FREQ_WRITE) {
+                float x = event.values[0];
+                float y = event.values[1];
+                float z = event.values[2];
+                long ts = new Date().getTime();
+                MagneticFieldEvent mf = new MagneticFieldEvent(Constants.MAGNETIC_FIELD_EVENT_TYPE,
+                        ts, userId, tripName, x, y, z);
+                Gson gson = new Gson();
+                String json = gson.toJson(mf);
+                writeToFile(json);
+            } else {
+                lastMagneticFieldEvent = event;
+                lastMagneticFieldEventTime = new Date().getTime();
+            }
+        }
     }
 
     @Override
@@ -435,6 +559,8 @@ public class AutoTrackerIntentService extends IntentService implements
                 Log.e(LOG_TAG, "Error while writing file: " + e);
             }
         }
+        if(USE_FIREBASE)
+            firebaseRef.push().setValue(data);
     }
 
     private boolean isExternalStorageWritable() {

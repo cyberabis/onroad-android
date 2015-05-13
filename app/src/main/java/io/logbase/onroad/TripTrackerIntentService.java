@@ -12,6 +12,7 @@ import android.location.Location;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.PowerManager;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
@@ -65,6 +66,7 @@ public class TripTrackerIntentService extends IntentService implements
     private long lastOrientationEventTime = 0;
     private SensorEvent lastMagneticFieldEvent = null;
     private long lastMagneticFieldEventTime = 0;
+    private android.os.PowerManager.WakeLock wakeLock = null;
 
     public TripTrackerIntentService() {
         super("TripTrackerIntentService");
@@ -86,6 +88,12 @@ public class TripTrackerIntentService extends IntentService implements
         //Check is GPS, sensors are available
         if( lm.isProviderEnabled(LocationManager.GPS_PROVIDER) && (accelerometer != null)
                 && (gyroscope != null) ){
+
+            //Acquire wake lock:
+            PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
+            wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "OnRoadWakelock");
+            wakeLock.acquire();
+
             SharedPreferences sharedPref = this.getSharedPreferences(getString(R.string.pref_file_key),
                     Context.MODE_PRIVATE);
             userId = sharedPref.getString(getString(R.string.username_key), null);
@@ -236,6 +244,8 @@ public class TripTrackerIntentService extends IntentService implements
                 }
             }
             Log.i(LOG_TAG, "Disconnecting Google API, stopping sensor tracker service.");
+            //Release wakelock
+            wakeLock.release();
         } else {
             Log.i(LOG_TAG, "GPS or Sensors unavailable.");
             //Broadcast to activity that the service stopped due to state issue

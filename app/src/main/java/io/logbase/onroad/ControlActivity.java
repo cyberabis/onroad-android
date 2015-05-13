@@ -143,7 +143,8 @@ public class ControlActivity extends ActionBarActivity {
                 editText.setEnabled(false);
                 toggleButton.setText(getString(R.string.toggle_trip_stop_button));
                 Intent tripTrackerIntent = new Intent(this, TripTrackerIntentService.class);
-                String tripName = "trip_";
+                String userId = sharedPref.getString(getString(R.string.username_key), null);
+                String tripName = userId + "_trip_";
                 if ((editText.getText() != null) && (!editText.getText().toString().equals("")))
                     tripName = tripName + editText.getText().toString() + "_";
                 SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd_HHmmss");
