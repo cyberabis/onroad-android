@@ -19,10 +19,12 @@ import android.util.Log;
 import android.os.PowerManager;
 
 import com.amazonaws.auth.CognitoCachingCredentialsProvider;
+import com.amazonaws.mobileconnectors.s3.transfermanager.Transfer;
 import com.amazonaws.mobileconnectors.s3.transfermanager.TransferManager;
 import com.amazonaws.mobileconnectors.s3.transfermanager.Upload;
 import com.amazonaws.regions.Regions;
 import com.firebase.client.Firebase;
+import com.flurry.android.FlurryAgent;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.GoogleApiClient.ConnectionCallbacks;
@@ -91,6 +93,18 @@ public class AutoTrackerIntentService extends IntentService implements
     private SensorEvent lastMagneticFieldEvent = null;
     private long lastMagneticFieldEventTime = 0;
     private android.os.PowerManager.WakeLock wakeLock = null;
+    private static final String MY_FLURRY_APIKEY = "B7DM3GDQ5GKYSGJC96RY";
+    private static final long FLURRY_EXPIRE_MILLIS = 5 * 1000;
+    private static final String AUTO_MODE_STARTED = "AutoModeStarted";
+    private static final String AUTO_MODE_ENDED = "AutoModeEnded";
+    private static final String AUTO_MODE_EXITED = "AutoModeExited";
+    private static final String MOVEMENT_DETECTED = "MovementDetected";
+    private static final String STATIONARY_DETECTED = "StationaryDetected";
+    private static final String UPLOAD_IN_PROGRESS = "UploadInProgress";
+    private static final String STARTED_UPLOAD = "StartedUpload";
+    private static final String UPLOAD_COMPLETE = "UploadComplete";
+    private static final String UPLOAD_ERROR = "UploadError";
+
 
     public AutoTrackerIntentService() {
         super("AutoTrackerIntentService");
@@ -98,7 +112,20 @@ public class AutoTrackerIntentService extends IntentService implements
 
     @Override
     protected void onHandleIntent(Intent intent) {
+
         Log.i(LOG_TAG, "Auto tracker service started.");
+
+        SharedPreferences sharedPref = this.getSharedPreferences(getString(R.string.pref_file_key),
+                Context.MODE_PRIVATE);
+        userId = sharedPref.getString(getString(R.string.username_key), null);
+
+        FlurryAgent.setUserId(userId);
+        FlurryAgent.init(this, MY_FLURRY_APIKEY);
+        FlurryAgent.setContinueSessionMillis(FLURRY_EXPIRE_MILLIS);
+
+        FlurryAgent.onStartSession(this);
+        FlurryAgent.logEvent(AUTO_MODE_STARTED);
+        FlurryAgent.onEndSession(this);
 
         //GPS and Sensors init
         LocationManager lm = (LocationManager) getSystemService(LOCATION_SERVICE);
@@ -118,10 +145,6 @@ public class AutoTrackerIntentService extends IntentService implements
             wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "OnRoadWakelock");
             wakeLock.acquire();
 
-            SharedPreferences sharedPref = this.getSharedPreferences(getString(R.string.pref_file_key),
-                    Context.MODE_PRIVATE);
-            userId = sharedPref.getString(getString(R.string.username_key), null);
-
             mGoogleApiClient = new GoogleApiClient.Builder(this)
                     .addConnectionCallbacks(this)
                     .addOnConnectionFailedListener(this)
@@ -137,12 +160,17 @@ public class AutoTrackerIntentService extends IntentService implements
             }
 
             while(runService) {
+
                 //Sleep for a frequency
                 try {
                     Thread.sleep(AUTO_FREQUENCY_MILLIS);
                 } catch (Exception e) {
                     Log.e(LOG_TAG, "Interrupted while sleeping : " + e);
                 }
+
+                //Start flurry session
+                FlurryAgent.onStartSession(this);
+
                 if(isMoving())
                     startRecording();
                 else {
@@ -158,15 +186,24 @@ public class AutoTrackerIntentService extends IntentService implements
                 if ((toggleMode != null) && (toggleMode.equals(getString(R.string.toggle_auto_start_button)))) {
                     runService = false;
                 }
+
+                //Stop flurry session
+                FlurryAgent.onEndSession(this);
             }
             //After loop: service stopping
             LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
             mGoogleApiClient.disconnect();
             Log.i(LOG_TAG, "Disconnecting Google API, stopping sensor tracker service.");
+            FlurryAgent.onStartSession(this);
+            FlurryAgent.logEvent(AUTO_MODE_ENDED);
+            FlurryAgent.onEndSession(this);
             //Release wakelock
             wakeLock.release();
         } else {
             Log.i(LOG_TAG, "GPS or Sensors unavailable.");
+            FlurryAgent.onStartSession(this);
+            FlurryAgent.logEvent(AUTO_MODE_EXITED);
+            FlurryAgent.onEndSession(this);
             //Broadcast to activity that the service stopped due to state issue
             Intent localIntent = new Intent(Constants.BROADCAST_ACTION)
                     .putExtra(Constants.SERVICE_STATUS, Constants.AUTO_TRACKER_STOP_STATUS);
@@ -184,10 +221,19 @@ public class AutoTrackerIntentService extends IntentService implements
             uploadFile.delete();
             upload = null;
             Log.i(LOG_TAG, "Upload completed. Removed last uploaded file");
+            FlurryAgent.logEvent(UPLOAD_COMPLETE);
             uploadAFile();
         } else {
-            //DO nothing as upload is in progress
-            Log.i(LOG_TAG, "Upload in progress");
+            //Check if any error while upload, then cancel the upload and restart.
+            if(upload.getState().compareTo(Transfer.TransferState.Failed) == 0) {
+                FlurryAgent.logEvent(UPLOAD_ERROR);
+                upload.abort();
+                upload = null;
+            } else {
+                //DO nothing as upload is in progress
+                Log.i(LOG_TAG, "Upload in progress");
+                FlurryAgent.logEvent(UPLOAD_IN_PROGRESS);
+            }
         }
     }
 
@@ -217,8 +263,10 @@ public class AutoTrackerIntentService extends IntentService implements
             Log.i(LOG_TAG, "No. of files to upload: " + files.length);
             uploadFile = files[0];
             upload = transferManager.upload(Constants.S3_BUCKET_NAME, uploadFile.getName(), uploadFile);
-        } else
+            FlurryAgent.logEvent(STARTED_UPLOAD);
+        } else {
             Log.i(LOG_TAG, "Nothing to upload");
+        }
     }
 
     private void startRecording(){
@@ -385,12 +433,16 @@ public class AutoTrackerIntentService extends IntentService implements
 
         if(timeElapsed > NOT_MOVING_ELAPSE_MILLIS) {
             Log.i(LOG_TAG, "Not moving, location unchanged.");
+            FlurryAgent.logEvent(STATIONARY_DETECTED);
             return false;
         } else if (avgSpeed < NOT_MOVING_AVG_SPEED) {
             Log.i(LOG_TAG, "Not moving, avg speed is too low: " + avgSpeed);
+            FlurryAgent.logEvent(STATIONARY_DETECTED);
             return false;
-        } else
+        } else {
+            FlurryAgent.logEvent(MOVEMENT_DETECTED);
             return true;
+        }
     }
 
     @Override
