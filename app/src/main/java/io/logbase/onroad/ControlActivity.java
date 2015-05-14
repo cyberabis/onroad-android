@@ -391,14 +391,9 @@ public class ControlActivity extends ActionBarActivity implements RecognitionLis
         String errorMessage = getErrorText(errorCode);
         Log.d(LOG_TAG, "FAILED " + errorMessage);
         toggleSpeechRec.setChecked(false);
-        if(errorCode == SpeechRecognizer.ERROR_CLIENT){
-            //take a break and start again
-            try {
-                Thread.sleep(SPEECH_REC_SLEEP);
-                Log.i(LOG_TAG, "Waiting for Recognition service to complete...");
-            } catch (Exception e) {
-                Log.e(LOG_TAG, "Interrupted while sleeping : " + e);
-            }
+        if( (errorCode == SpeechRecognizer.ERROR_NO_MATCH)
+                || (errorCode == SpeechRecognizer.ERROR_CLIENT) ){
+            speech.cancel();
             toggleSpeechRec.setChecked(true);
         }
     }

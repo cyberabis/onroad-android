@@ -104,7 +104,8 @@ public class AutoTrackerIntentService extends IntentService implements
     private static final String STARTED_UPLOAD = "StartedUpload";
     private static final String UPLOAD_COMPLETE = "UploadComplete";
     private static final String UPLOAD_ERROR = "UploadError";
-
+    private static final String RECORD_ERROR = "RecordError";
+    private static final String GOOGLE_API_DISCONNECTED = "GoogleAPIDisconnected";
 
     public AutoTrackerIntentService() {
         super("AutoTrackerIntentService");
@@ -172,7 +173,12 @@ public class AutoTrackerIntentService extends IntentService implements
                 FlurryAgent.onStartSession(this);
 
                 if(isMoving())
-                    startRecording();
+                    try {
+                        startRecording();
+                    } catch (Exception e) {
+                        Log.e(LOG_TAG, "Exception while recording.");
+                        FlurryAgent.logEvent(RECORD_ERROR);
+                    }
                 else {
                     ConnectivityManager cm = (ConnectivityManager) this.getSystemService(Context.CONNECTIVITY_SERVICE);
                     NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
@@ -269,7 +275,7 @@ public class AutoTrackerIntentService extends IntentService implements
         }
     }
 
-    private void startRecording(){
+    private void startRecording() throws Exception {
         Log.i(LOG_TAG, "Trip start detected!");
 
         //reconnect for faster GPS updates
@@ -427,10 +433,12 @@ public class AutoTrackerIntentService extends IntentService implements
     private boolean isMoving(){
         long timeElapsed = new Date().getTime() - lastLocationTime;
         float sumSpeed = 0;
-        for(Long time: speeds.keySet())
-            sumSpeed = sumSpeed + speeds.get(time);
-        float avgSpeed = sumSpeed / speeds.size();
-
+        float avgSpeed = 0;
+        if(speeds.size() > 0) {
+            for (Long time : speeds.keySet())
+                sumSpeed = sumSpeed + speeds.get(time);
+            avgSpeed = sumSpeed / speeds.size();
+        }
         if(timeElapsed > NOT_MOVING_ELAPSE_MILLIS) {
             Log.i(LOG_TAG, "Not moving, location unchanged.");
             FlurryAgent.logEvent(STATIONARY_DETECTED);
@@ -468,6 +476,7 @@ public class AutoTrackerIntentService extends IntentService implements
         // Disable any UI components that depend on Google APIs
         // until onConnected() is called.
         Log.i(LOG_TAG, "Google API connection suspended");
+        FlurryAgent.logEvent(GOOGLE_API_DISCONNECTED);
         runService = false;
     }
 
@@ -478,6 +487,7 @@ public class AutoTrackerIntentService extends IntentService implements
         //
         // More about this in the next section.
         Log.i(LOG_TAG, "Google API connection failed");
+        FlurryAgent.logEvent(GOOGLE_API_DISCONNECTED);
         runService = false;
     }
 
