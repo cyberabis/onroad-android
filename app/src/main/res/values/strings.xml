@@ -29,7 +29,8 @@
     <string name="upload_stop_button">Uploading</string>
     <string name="toggle_auto_start_button">Start Auto Mode</string>
     <string name="toggle_auto_stop_button">Stop Auto Mode</string>
-    <string name="training_header">Training Controls</string>
+    <string name="voice_training_header">Voice Training Controls</string>
+    <string name="manual_training_header">Manual Training Controls</string>
     <string name="speed_bump_button">Speed bump</string>
     <string name="pothole_button">Pothole</string>
     <string name="acc_button">Harsh Accel.</string>
