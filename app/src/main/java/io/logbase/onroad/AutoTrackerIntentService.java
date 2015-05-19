@@ -98,14 +98,16 @@ public class AutoTrackerIntentService extends IntentService implements
     private static final String AUTO_MODE_STARTED = "AutoModeStarted";
     private static final String AUTO_MODE_ENDED = "AutoModeEnded";
     private static final String AUTO_MODE_EXITED = "AutoModeExited";
-    private static final String MOVEMENT_DETECTED = "MovementDetected";
-    private static final String STATIONARY_DETECTED = "StationaryDetected";
+    private static final String RECORDING_START = "RecordingStart";
+    private static final String RECORDING_END = "RecordingEnd";
     private static final String UPLOAD_IN_PROGRESS = "UploadInProgress";
     private static final String STARTED_UPLOAD = "StartedUpload";
     private static final String UPLOAD_COMPLETE = "UploadComplete";
     private static final String UPLOAD_ERROR = "UploadError";
     private static final String RECORD_ERROR = "RecordError";
     private static final String GOOGLE_API_DISCONNECTED = "GoogleAPIDisconnected";
+    private static final boolean FLURRY_ENABLED = false;
+    private static final boolean LOG_ENABLED = false;
 
     public AutoTrackerIntentService() {
         super("AutoTrackerIntentService");
@@ -114,19 +116,22 @@ public class AutoTrackerIntentService extends IntentService implements
     @Override
     protected void onHandleIntent(Intent intent) {
 
-        Log.i(LOG_TAG, "Auto tracker service started.");
+        if(LOG_ENABLED)
+            Log.i(LOG_TAG, "Auto tracker service started.");
 
         SharedPreferences sharedPref = this.getSharedPreferences(getString(R.string.pref_file_key),
                 Context.MODE_PRIVATE);
         userId = sharedPref.getString(getString(R.string.username_key), null);
 
-        FlurryAgent.setUserId(userId);
-        FlurryAgent.init(this, MY_FLURRY_APIKEY);
-        FlurryAgent.setContinueSessionMillis(FLURRY_EXPIRE_MILLIS);
+        if(FLURRY_ENABLED) {
+            FlurryAgent.setUserId(userId);
+            FlurryAgent.init(this, MY_FLURRY_APIKEY);
+            FlurryAgent.setContinueSessionMillis(FLURRY_EXPIRE_MILLIS);
 
-        FlurryAgent.onStartSession(this);
-        FlurryAgent.logEvent(AUTO_MODE_STARTED);
-        FlurryAgent.onEndSession(this);
+            FlurryAgent.onStartSession(this);
+            FlurryAgent.logEvent(AUTO_MODE_STARTED);
+            FlurryAgent.onEndSession(this);
+        }
 
         //GPS and Sensors init
         LocationManager lm = (LocationManager) getSystemService(LOCATION_SERVICE);
@@ -166,57 +171,75 @@ public class AutoTrackerIntentService extends IntentService implements
                 try {
                     Thread.sleep(AUTO_FREQUENCY_MILLIS);
                 } catch (Exception e) {
-                    Log.e(LOG_TAG, "Interrupted while sleeping : " + e);
+                    if(LOG_ENABLED)
+                        Log.e(LOG_TAG, "Interrupted while sleeping : " + e);
                 }
 
                 //Start flurry session
-                FlurryAgent.onStartSession(this);
+                if(FLURRY_ENABLED)
+                    FlurryAgent.onStartSession(this);
 
                 if(isMoving())
                     try {
                         startRecording();
                     } catch (Exception e) {
-                        Log.e(LOG_TAG, "Exception while recording.");
-                        FlurryAgent.logEvent(RECORD_ERROR);
+                        if(LOG_ENABLED)
+                            Log.e(LOG_TAG, "Exception while recording.");
+                        if(FLURRY_ENABLED)
+                            FlurryAgent.logEvent(RECORD_ERROR);
                     }
                 else {
-                    ConnectivityManager cm = (ConnectivityManager) this.getSystemService(Context.CONNECTIVITY_SERVICE);
-                    NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
-                    boolean networkAvailable = activeNetwork != null &&
-                            activeNetwork.isConnectedOrConnecting();
-                    if(networkAvailable)
-                        uploadFiles();
+                    try {
+                        ConnectivityManager cm = (ConnectivityManager) this.getSystemService(Context.CONNECTIVITY_SERVICE);
+                        NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+                        boolean networkAvailable = activeNetwork != null &&
+                                activeNetwork.isConnectedOrConnecting();
+                        if (networkAvailable)
+                            uploadFiles();
+                    } catch(Exception e) {
+                        if(LOG_ENABLED)
+                            Log.e(LOG_TAG, "Exception in upload loop.");
+                        if(FLURRY_ENABLED)
+                            FlurryAgent.logEvent(UPLOAD_ERROR);
+                    }
                 }
                 //Read flag again
                 String toggleMode = sharedPref.getString(getString(R.string.toggle_auto_mode_key), null);
                 if ((toggleMode != null) && (toggleMode.equals(getString(R.string.toggle_auto_start_button)))) {
                     runService = false;
                 }
-
                 //Stop flurry session
-                FlurryAgent.onEndSession(this);
+                if(FLURRY_ENABLED)
+                    FlurryAgent.onEndSession(this);
             }
             //After loop: service stopping
             LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
             mGoogleApiClient.disconnect();
-            Log.i(LOG_TAG, "Disconnecting Google API, stopping sensor tracker service.");
-            FlurryAgent.onStartSession(this);
-            FlurryAgent.logEvent(AUTO_MODE_ENDED);
-            FlurryAgent.onEndSession(this);
+            if(LOG_ENABLED)
+                Log.i(LOG_TAG, "Disconnecting Google API, stopping sensor tracker service.");
+            if(FLURRY_ENABLED) {
+                FlurryAgent.onStartSession(this);
+                FlurryAgent.logEvent(AUTO_MODE_ENDED);
+                FlurryAgent.onEndSession(this);
+            }
             //Release wakelock
             wakeLock.release();
         } else {
-            Log.i(LOG_TAG, "GPS or Sensors unavailable.");
-            FlurryAgent.onStartSession(this);
-            FlurryAgent.logEvent(AUTO_MODE_EXITED);
-            FlurryAgent.onEndSession(this);
+            if(LOG_ENABLED)
+                Log.i(LOG_TAG, "GPS or Sensors unavailable.");
+            if(FLURRY_ENABLED) {
+                FlurryAgent.onStartSession(this);
+                FlurryAgent.logEvent(AUTO_MODE_EXITED);
+                FlurryAgent.onEndSession(this);
+            }
             //Broadcast to activity that the service stopped due to state issue
             Intent localIntent = new Intent(Constants.BROADCAST_ACTION)
                     .putExtra(Constants.SERVICE_STATUS, Constants.AUTO_TRACKER_STOP_STATUS);
             // Broadcasts the Intent to receivers in this app.
             LocalBroadcastManager.getInstance(this).sendBroadcast(localIntent);
         }
-        Log.i(LOG_TAG, "Auto tracker service stopped.");
+        if(LOG_ENABLED)
+            Log.i(LOG_TAG, "Auto tracker service stopped.");
     }
 
     private void uploadFiles() {
@@ -226,25 +249,29 @@ public class AutoTrackerIntentService extends IntentService implements
             // Remove uploaded file and start next upload
             uploadFile.delete();
             upload = null;
-            Log.i(LOG_TAG, "Upload completed. Removed last uploaded file");
-            FlurryAgent.logEvent(UPLOAD_COMPLETE);
+            if(LOG_ENABLED)
+                Log.i(LOG_TAG, "Upload completed. Removed last uploaded file");
+            if(FLURRY_ENABLED)
+                FlurryAgent.logEvent(UPLOAD_COMPLETE);
             uploadAFile();
         } else {
             //Check if any error while upload, then cancel the upload and restart.
             if(upload.getState().compareTo(Transfer.TransferState.Failed) == 0) {
-                FlurryAgent.logEvent(UPLOAD_ERROR);
+                if(FLURRY_ENABLED)
+                    FlurryAgent.logEvent(UPLOAD_ERROR);
                 upload.abort();
                 upload = null;
             } else {
                 //DO nothing as upload is in progress
-                Log.i(LOG_TAG, "Upload in progress");
-                FlurryAgent.logEvent(UPLOAD_IN_PROGRESS);
+                if(LOG_ENABLED)
+                    Log.i(LOG_TAG, "Upload in progress");
+                if(FLURRY_ENABLED)
+                    FlurryAgent.logEvent(UPLOAD_IN_PROGRESS);
             }
         }
     }
 
     private void uploadAFile() {
-        // Initialize the Amazon Cognito credentials provider
         File directory = null;
         File[] files = null;
         if (isExternalStorageWritable()) {
@@ -252,13 +279,32 @@ public class AutoTrackerIntentService extends IntentService implements
         } else {
             directory = getFilesDir();
         }
-        if (directory.exists())
+        if (directory.exists()) {
+            //Check for unzipped files
+            File[] unzippedFiles = directory.listFiles(new FilenameFilter() {
+                @Override
+                public boolean accept(File dir, String name) {
+                    return name.toLowerCase().endsWith("_auto");
+                }
+            });
+            //Zip the files and delete original
+            if ( (unzippedFiles != null) && (unzippedFiles.length > 0) ) {
+                if(LOG_ENABLED)
+                    Log.i(LOG_TAG, "Found unzipped file(s), going to zip.");
+                for(int i=0; i<unzippedFiles.length; i++) {
+                    ZipUtils.zipFile(unzippedFiles[i], unzippedFiles[i].getPath() + ".zip");
+                    unzippedFiles[i].delete();
+                }
+            }
+            //Check for zip files
             files = directory.listFiles(new FilenameFilter() {
                 @Override
                 public boolean accept(File dir, String name) {
                     return name.toLowerCase().endsWith("_auto.zip");
                 }
             });
+        }
+
         if ( (files != null) && (files.length > 0) ) {
             CognitoCachingCredentialsProvider credentialsProvider = new CognitoCachingCredentialsProvider(
                     this,
@@ -266,17 +312,23 @@ public class AutoTrackerIntentService extends IntentService implements
                     Regions.US_EAST_1
             );
             TransferManager transferManager = new TransferManager(credentialsProvider);
-            Log.i(LOG_TAG, "No. of files to upload: " + files.length);
+            if(LOG_ENABLED)
+                Log.i(LOG_TAG, "No. of files to upload: " + files.length);
             uploadFile = files[0];
             upload = transferManager.upload(Constants.S3_BUCKET_NAME, uploadFile.getName(), uploadFile);
-            FlurryAgent.logEvent(STARTED_UPLOAD);
+            if(FLURRY_ENABLED)
+                FlurryAgent.logEvent(STARTED_UPLOAD);
         } else {
-            Log.i(LOG_TAG, "Nothing to upload");
+            if(LOG_ENABLED)
+                Log.i(LOG_TAG, "Nothing to upload");
         }
     }
 
     private void startRecording() throws Exception {
-        Log.i(LOG_TAG, "Trip start detected!");
+        if(LOG_ENABLED)
+            Log.i(LOG_TAG, "Trip start detected!");
+        if(FLURRY_ENABLED)
+            FlurryAgent.logEvent(RECORDING_START);
 
         //reconnect for faster GPS updates
         mGoogleApiClient.disconnect();
@@ -300,7 +352,8 @@ public class AutoTrackerIntentService extends IntentService implements
                 record = true;
             }
         } catch (Exception e) {
-            Log.e(LOG_TAG, "Error opening file: " + e);
+            if(LOG_ENABLED)
+                Log.e(LOG_TAG, "Error opening file: " + e);
         }
         if(record) {
             //Register sensor listeners
@@ -318,7 +371,8 @@ public class AutoTrackerIntentService extends IntentService implements
             try {
                 Thread.sleep(FREQUENCY_MILLIS);
             } catch (Exception e) {
-                Log.e(LOG_TAG, "Interrupted while sleeping : " + e);
+                if(LOG_ENABLED)
+                    Log.e(LOG_TAG, "Interrupted while sleeping : " + e);
             }
 
             //if fixedFrequencyWrite, write to file.
@@ -403,31 +457,37 @@ public class AutoTrackerIntentService extends IntentService implements
             if((record)&&(!isMoving()))
                 record = false;
         }
-        //After loop: Unregister listeners, recording complete
-        mSensorManager.unregisterListener(this);
+
         lastAccelerometerEvent = null;
         lastGyroscopeEvent = null;
+
         //Close outputstream
         if(outputStream != null) {
-            if(file != null) {
-                String filePath = file.getPath();
+            String filePath = file.getPath();
+            if(LOG_ENABLED)
                 Log.i(LOG_TAG, "Wrote file of space: " + file.length() + " for: " + filePath);
+            try {
                 ZipUtils.zipFile(file, filePath + ".zip");
                 file.delete();
-            }
-            try {
                 outputStream.close();
             } catch (Exception e) {
-                Log.e(LOG_TAG, "Error closing file: " + e);
+                if(LOG_ENABLED)
+                    Log.e(LOG_TAG, "Error closing file: " + e);
             }
             outputStream = null;
         }
-        Log.i(LOG_TAG, "Trip ended!");
+        if(LOG_ENABLED)
+            Log.i(LOG_TAG, "Trip ended!");
 
+        //After loop: Unregister listeners, recording complete
+        mSensorManager.unregisterListener(this);
         //Reconnect for slower GPS
         mGoogleApiClient.disconnect();
         slowdownGPS = true;
         mGoogleApiClient.connect();
+
+        if(FLURRY_ENABLED)
+            FlurryAgent.logEvent(RECORDING_END);
     }
 
     private boolean isMoving(){
@@ -440,22 +500,22 @@ public class AutoTrackerIntentService extends IntentService implements
             avgSpeed = sumSpeed / speeds.size();
         }
         if(timeElapsed > NOT_MOVING_ELAPSE_MILLIS) {
-            Log.i(LOG_TAG, "Not moving, location unchanged.");
-            FlurryAgent.logEvent(STATIONARY_DETECTED);
+            if(LOG_ENABLED)
+                Log.i(LOG_TAG, "Not moving, location unchanged.");
             return false;
         } else if (avgSpeed < NOT_MOVING_AVG_SPEED) {
-            Log.i(LOG_TAG, "Not moving, avg speed is too low: " + avgSpeed);
-            FlurryAgent.logEvent(STATIONARY_DETECTED);
+            if(LOG_ENABLED)
+                Log.i(LOG_TAG, "Not moving, avg speed is too low: " + avgSpeed);
             return false;
         } else {
-            FlurryAgent.logEvent(MOVEMENT_DETECTED);
             return true;
         }
     }
 
     @Override
     public void onConnected(Bundle connectionHint) {
-        Log.i(LOG_TAG, "Google API connected");
+        if(LOG_ENABLED)
+            Log.i(LOG_TAG, "Google API connected");
         LocationRequest mLocationRequest = new LocationRequest();
         if(slowdownGPS) {
             mLocationRequest.setInterval(AUTO_FREQUENCY_MILLIS);
@@ -475,8 +535,10 @@ public class AutoTrackerIntentService extends IntentService implements
         // The connection has been interrupted.
         // Disable any UI components that depend on Google APIs
         // until onConnected() is called.
-        Log.i(LOG_TAG, "Google API connection suspended");
-        FlurryAgent.logEvent(GOOGLE_API_DISCONNECTED);
+        if(LOG_ENABLED)
+            Log.i(LOG_TAG, "Google API connection suspended");
+        if(FLURRY_ENABLED)
+            FlurryAgent.logEvent(GOOGLE_API_DISCONNECTED);
         runService = false;
     }
 
@@ -486,8 +548,10 @@ public class AutoTrackerIntentService extends IntentService implements
         // may occur while attempting to connect with Google.
         //
         // More about this in the next section.
-        Log.i(LOG_TAG, "Google API connection failed");
-        FlurryAgent.logEvent(GOOGLE_API_DISCONNECTED);
+        if(LOG_ENABLED)
+            Log.i(LOG_TAG, "Google API connection failed");
+        if(FLURRY_ENABLED)
+            FlurryAgent.logEvent(GOOGLE_API_DISCONNECTED);
         runService = false;
     }
 
@@ -600,25 +664,29 @@ public class AutoTrackerIntentService extends IntentService implements
             long firstKey = speeds.firstKey();
             if(firstKey < currentWindowStart){
                 //Get a tail map
-                Log.i(LOG_TAG, "limiting speeds map withing window");
+                if(LOG_ENABLED)
+                    Log.i(LOG_TAG, "limiting speeds map withing window");
                 SortedMap newSpeeds = speeds.tailMap(currentWindowStart);
                 speeds = newSpeeds;
             }
         }
         if(location.getSpeed() < SPEED_NOISE_CUTOFF) {
             speeds.put(ts, location.getSpeed());
-            Log.i(LOG_TAG, "Added speed: " + location.getSpeed() + "@" + location.getTime());
+            if(LOG_ENABLED)
+                Log.i(LOG_TAG, "Added speed: " + location.getSpeed() + "@" + location.getTime());
         }
     }
 
-    private void writeToFile(String data){
-        Log.i(LOG_TAG, "Going to write: " + data);
+    private void writeToFile (String data) {
+        if(LOG_ENABLED)
+            Log.i(LOG_TAG, "Going to write: " + data);
         if(outputStream != null) {
             try {
                 outputStream.write(data.getBytes());
                 outputStream.write("\n".getBytes());
             } catch (Exception e) {
-                Log.e(LOG_TAG, "Error while writing file: " + e);
+                if(LOG_ENABLED)
+                    Log.e(LOG_TAG, "Error while writing file: " + e);
             }
         }
         if(USE_FIREBASE)
@@ -640,10 +708,13 @@ public class AutoTrackerIntentService extends IntentService implements
         try {
             if (file.createNewFile())
                 isFileCreated = true;
-            else
-                Log.e(LOG_TAG, "Directory not created");
+            else {
+                if (LOG_ENABLED)
+                    Log.e(LOG_TAG, "Directory not created");
+            }
         } catch (IOException e) {
-            Log.e(LOG_TAG, "Exception while creating file");
+            if(LOG_ENABLED)
+                Log.e(LOG_TAG, "Exception while creating file");
         }
         if (isFileCreated)
             return file;
