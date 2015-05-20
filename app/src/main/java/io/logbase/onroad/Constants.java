@@ -9,9 +9,9 @@ public final class Constants {
 
     public static final String SERVICE_STATUS =  "io.logbase.onroad.SSTATUS";
 
-    public static final String TRIP_TRACKER_STOP_STATUS = "io.logbase.onroad.STSTOP";
+    public static final String TRIP_TRACKER_STOP_STATUS = "io.logbase.onroad.TTSTOP";
 
-    public static final String AUTO_TRACKER_STOP_STATUS = "io.logbase.onroad.STSTOP";
+    public static final String AUTO_TRACKER_STOP_STATUS = "io.logbase.onroad.ATSTOP";
 
     public static final String DATA_UPLOAD_DONE_STATUS = "io.logbase.onroad.DUDONE";
 

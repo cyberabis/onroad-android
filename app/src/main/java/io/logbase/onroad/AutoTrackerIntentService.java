@@ -508,6 +508,8 @@ public class AutoTrackerIntentService extends IntentService implements
                 Log.i(LOG_TAG, "Not moving, avg speed is too low: " + avgSpeed);
             return false;
         } else {
+            if(LOG_ENABLED)
+                Log.i(LOG_TAG, "Moving, avg speed is: " + avgSpeed);
             return true;
         }
     }
@@ -664,22 +666,22 @@ public class AutoTrackerIntentService extends IntentService implements
             long firstKey = speeds.firstKey();
             if(firstKey < currentWindowStart){
                 //Get a tail map
-                if(LOG_ENABLED)
-                    Log.i(LOG_TAG, "limiting speeds map withing window");
+                //if(LOG_ENABLED)
+                    //Log.i(LOG_TAG, "limiting speeds map withing window");
                 SortedMap newSpeeds = speeds.tailMap(currentWindowStart);
                 speeds = newSpeeds;
             }
         }
         if(location.getSpeed() < SPEED_NOISE_CUTOFF) {
             speeds.put(ts, location.getSpeed());
-            if(LOG_ENABLED)
-                Log.i(LOG_TAG, "Added speed: " + location.getSpeed() + "@" + location.getTime());
+            //if(LOG_ENABLED)
+                //Log.i(LOG_TAG, "Added speed: " + location.getSpeed() + "@" + location.getTime());
         }
     }
 
     private void writeToFile (String data) {
-        if(LOG_ENABLED)
-            Log.i(LOG_TAG, "Going to write: " + data);
+        //if(LOG_ENABLED)
+            //Log.i(LOG_TAG, "Going to write: " + data);
         if(outputStream != null) {
             try {
                 outputStream.write(data.getBytes());

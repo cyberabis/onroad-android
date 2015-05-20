@@ -436,7 +436,7 @@ public class ControlActivity extends ActionBarActivity implements RecognitionLis
 
     @Override
     public void onRmsChanged(float rmsdB) {
-        Log.i(LOG_TAG, "onRmsChanged: " + rmsdB);
+        //Log.i(LOG_TAG, "onRmsChanged: " + rmsdB);
     }
 
     public static String getErrorText(int errorCode) {
