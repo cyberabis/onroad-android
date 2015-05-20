@@ -66,13 +66,54 @@
             android:layout_alignParentRight="true"
             android:onClick="toggleAuto" />
 
+        <View
+            android:id="@+id/break0"
+            android:layout_width="fill_parent"
+            android:layout_height="1dp"
+            android:background="#2196F3"
+            android:layout_below="@+id/toggle_auto"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentStart="true"
+            android:layout_marginTop="30dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAppearance="?android:attr/textAppearanceMedium"
+            android:text="@string/training"
+            android:id="@+id/training"
+            android:layout_below="@id/break0"
+            android:layout_marginTop="30dip"
+            android:layout_centerHorizontal="true"
+            android:textColor="#FFFFFF" />
+
+        <ToggleButton
+            android:id="@+id/toggleTraining"
+            android:layout_width="match_parent"
+            android:layout_below="@id/training"
+            android:layout_height="wrap_content"
+            android:layout_alignParentRight="true"
+            android:layout_marginTop="30dip"
+            android:text="ToggleButton"
+            android:background="#FFFFFF"/>
+
+        <View
+            android:id="@+id/break1"
+            android:layout_width="fill_parent"
+            android:layout_height="1dp"
+            android:background="#2196F3"
+            android:layout_below="@+id/toggleTraining"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentStart="true"
+            android:layout_marginTop="30dp" />
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textAppearance="?android:attr/textAppearanceMedium"
             android:text="@string/voice_training_header"
             android:id="@+id/training_header"
-            android:layout_below="@id/toggle_auto"
+            android:layout_below="@id/break1"
             android:layout_marginTop="30dip"
             android:layout_centerHorizontal="true"
             android:textColor="#FFFFFF" />
@@ -91,9 +132,41 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textAppearance="?android:attr/textAppearanceMedium"
+            android:text="@string/voice_match_title"
+            android:id="@+id/voice_match_title"
+            android:layout_below="@id/toggleSpeechRec"
+            android:layout_alignParentLeft="true"
+            android:layout_marginTop="30dip"
+            android:textColor="#FFFFFF" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAppearance="?android:attr/textAppearanceMedium"
+            android:text="@string/voice_match_none"
+            android:id="@+id/voice_match"
+            android:layout_below="@id/toggleSpeechRec"
+            android:layout_alignParentRight="true"
+            android:layout_marginTop="30dip"
+            android:textColor="#FFFFFF" />
+
+        <View
+            android:id="@+id/break2"
+            android:layout_width="fill_parent"
+            android:layout_height="1dp"
+            android:background="#2196F3"
+            android:layout_below="@+id/voice_match_title"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentStart="true"
+            android:layout_marginTop="30dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAppearance="?android:attr/textAppearanceMedium"
             android:text="@string/manual_training_header"
             android:id="@+id/manual_training_header"
-            android:layout_below="@id/toggleSpeechRec"
+            android:layout_below="@id/break2"
             android:layout_marginTop="30dip"
             android:layout_centerHorizontal="true"
             android:textColor="#FFFFFF" />

@@ -25,20 +25,25 @@ import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.util.Log;
 import android.widget.ScrollView;
+import android.widget.TextView;
 import android.widget.ToggleButton;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 
 
 public class ControlActivity extends ActionBarActivity implements RecognitionListener {
 
     private static final String LOG_TAG = "OnRoad Controls";
     private ToggleButton toggleSpeechRec;
+    private ToggleButton toggleTraining;
     private SpeechRecognizer speech = null;
     private Intent recognizerIntent;
     private static final int SPEECH_REC_SLEEP = 1000;
+    private String trainingFileName = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -78,8 +83,40 @@ public class ControlActivity extends ActionBarActivity implements RecognitionLis
             syncButton.setEnabled(false);
         }
 
+        //Hide keyboard from Scroll View
+        getWindow().setSoftInputMode(
+                WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
+
+        //Training start / stop toggle
+        toggleTraining = (ToggleButton) findViewById(R.id.toggleTraining);
+        toggleTraining.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView,
+                                         boolean isChecked) {
+                //TODO
+                if (isChecked) {
+                    //Create a new training file
+                    SharedPreferences sharedPref = getSharedPreferences(getString(R.string.pref_file_key),
+                            Context.MODE_PRIVATE);
+                    String userId = sharedPref.getString(getString(R.string.username_key), null);
+                    trainingFileName = userId + "_training_";
+                    SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd_HHmmss");
+                    String timestamp = sdf.format(new Date());
+                    trainingFileName = trainingFileName + timestamp;
+                    Log.i(LOG_TAG, "Training file name: " + trainingFileName);
+                } else {
+                    //Save and zip the file
+                    trainingFileName = null;
+                    Log.i(LOG_TAG, "Training file name reset to null");
+                }
+            }
+        });
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
         //Speech Recognition
-        //TODO Probably need to move this to resume method?
         toggleSpeechRec = (ToggleButton) findViewById(R.id.toggleSpeechRec);
         speech = SpeechRecognizer.createSpeechRecognizer(this);
         speech.setRecognitionListener(this);
@@ -102,10 +139,6 @@ public class ControlActivity extends ActionBarActivity implements RecognitionLis
                 }
             }
         });
-
-        //Hide keyboard from Scroll View
-        getWindow().setSoftInputMode(
-                WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
     }
 
     @Override
@@ -364,6 +397,7 @@ public class ControlActivity extends ActionBarActivity implements RecognitionLis
     @Override
     protected void onPause() {
         super.onPause();
+        toggleSpeechRec.setChecked(false);
         if (speech != null) {
             speech.destroy();
             Log.i(LOG_TAG, "Destroyed speech");
@@ -391,11 +425,11 @@ public class ControlActivity extends ActionBarActivity implements RecognitionLis
         String errorMessage = getErrorText(errorCode);
         Log.d(LOG_TAG, "FAILED " + errorMessage);
         toggleSpeechRec.setChecked(false);
-        if( (errorCode == SpeechRecognizer.ERROR_NO_MATCH)
+       if( (errorCode == SpeechRecognizer.ERROR_NO_MATCH)
                 || (errorCode == SpeechRecognizer.ERROR_CLIENT) ){
             speech.cancel();
             toggleSpeechRec.setChecked(true);
-        }
+       }
     }
 
     @Override
@@ -411,18 +445,15 @@ public class ControlActivity extends ActionBarActivity implements RecognitionLis
     @Override
     public void onReadyForSpeech(Bundle arg0) {
         Log.i(LOG_TAG, "onReadyForSpeech");
+        TextView voiceMatch = (TextView) findViewById(R.id.voice_match);
+        voiceMatch.setText(R.string.voice_match_none);
     }
 
     @Override
     public void onResults(Bundle results) {
         Log.i(LOG_TAG, "onResults");
-        ArrayList<String> matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
-        String text = "";
-        for (String result : matches)
-            text += result + "\n";
-        Log.i(LOG_TAG, "Returned text: " + text);
-        //Matched
-        //TODO Process and continue listening
+        List<String> matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+        checkVoiceMatch(matches);
         //take a break and start again
         try {
             Thread.sleep(SPEECH_REC_SLEEP);
@@ -432,6 +463,91 @@ public class ControlActivity extends ActionBarActivity implements RecognitionLis
         }
         toggleSpeechRec.setChecked(true);
 
+    }
+
+    private void checkVoiceMatch(List<String> matches) {
+        String match = null;
+        //Pothole
+        List<String> pothole = Arrays.asList("pothole");
+        for(String s: matches){
+            for(String p: pothole) {
+                if(s.equals(p)) {
+                    match = "pothole";
+                    break;
+                }
+            }
+            if(match != null)
+                break;
+        }
+        //Speed bump
+        if(match == null) {
+            List<String> speedBump = Arrays.asList("speed bump", "speed breaker");
+            for(String s: matches){
+                for(String b: speedBump) {
+                    if(s.equals(b)) {
+                        match = "speed bump";
+                        break;
+                    }
+                }
+                if(match != null)
+                    break;
+            }
+        }
+        //Acceleration
+        if(match == null) {
+            List<String> acceleration = Arrays.asList("acceleration");
+            for(String s: matches){
+                for(String a: acceleration) {
+                    if(s.equals(a)) {
+                        match = "acceleration";
+                        break;
+                    }
+                }
+                if(match != null)
+                    break;
+            }
+        }
+        //Braking
+        if(match == null) {
+            List<String> braking = Arrays.asList("braking", "breaking");
+            for(String s: matches){
+                for(String b: braking) {
+                    if(s.equals(b)) {
+                        match = "braking";
+                        break;
+                    }
+                }
+                if(match != null)
+                    break;
+            }
+        }
+        //Turn
+        if(match == null) {
+            List<String> turn = Arrays.asList("turn");
+            for(String s: matches){
+                for(String t: turn) {
+                    if(s.equals(t)) {
+                        match = "turn";
+                        break;
+                    }
+                }
+                if(match != null)
+                    break;
+            }
+        }
+        //TODO
+        if(match != null) {
+            //Log the training event
+            //Display the match
+            Log.i(LOG_TAG, "Matched training command: " + match);
+            TextView voiceMatch = (TextView) findViewById(R.id.voice_match);
+            voiceMatch.setText(match);
+        } else {
+            //Only display the top match
+            Log.i(LOG_TAG, "Best match: " + matches.get(0));
+            TextView voiceMatch = (TextView) findViewById(R.id.voice_match);
+            voiceMatch.setText(matches.get(0));
+        }
     }
 
     @Override

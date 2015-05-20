@@ -39,4 +39,11 @@
     <string name="trip_alert">Accelerometer, Gyroscope and GPS needs to be enabled.</string>
     <string name="upload_alert">Either internet not connected or trip is running.</string>
     <string name="auto_alert">Accelerometer, Gyroscope and GPS needs to be enabled.</string>
+
+    <string name="voice_match_title">Matched:</string>
+    <string name="voice_match_none">None</string>
+    <string name="speech_connection_alert">Unable to connect to server for speech recognition</string>
+    <string name="training">Training Start / Stop</string>
 </resources>
+
+
