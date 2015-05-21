@@ -40,7 +40,6 @@
             android:text="@string/toggle_trip_start_button"
             android:id="@+id/toggle_trip"
             android:layout_marginTop="30dip"
-            android:background="#FFFFFF"
             android:layout_alignParentLeft="true"
             android:onClick="toggleTrip" />
 
@@ -51,7 +50,6 @@
             android:text="@string/upload_start_button"
             android:id="@+id/sync_trip"
             android:layout_marginTop="30dip"
-            android:background="#FFFFFF"
             android:layout_alignParentRight="true"
             android:onClick="upload" />
 
@@ -62,7 +60,6 @@
             android:text="@string/toggle_auto_start_button"
             android:id="@+id/toggle_auto"
             android:layout_marginTop="30dip"
-            android:background="#FFFFFF"
             android:layout_alignParentRight="true"
             android:onClick="toggleAuto" />
 
@@ -95,7 +92,8 @@
             android:layout_alignParentRight="true"
             android:layout_marginTop="30dip"
             android:text="ToggleButton"
-            android:background="#FFFFFF"/>
+            android:textOn="Training ON"
+            android:textOff="Training OFF" />
 
         <View
             android:id="@+id/break1"
@@ -126,7 +124,8 @@
             android:layout_alignParentRight="true"
             android:layout_marginTop="30dip"
             android:text="ToggleButton"
-            android:background="#FFFFFF"/>
+            android:textOn="Voice Control ON"
+            android:textOff="Voice Control OFF" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -179,7 +178,6 @@
             android:text="@string/speed_bump_button"
             android:id="@+id/speed_bump"
             android:layout_marginTop="30dip"
-            android:background="#FFFFFF"
             android:onClick="speedBump" />
 
         <Button
@@ -190,7 +188,6 @@
             android:text="@string/pothole_button"
             android:id="@+id/pothole"
             android:layout_marginTop="30dip"
-            android:background="#FFFFFF"
             android:onClick="pothole" />
 
         <Button
@@ -201,7 +198,6 @@
             android:text="@string/acc_button"
             android:id="@+id/harsh_acc"
             android:layout_marginTop="30dip"
-            android:background="#FFFFFF"
             android:onClick="harshAcc" />
 
         <Button
@@ -212,7 +208,6 @@
             android:text="@string/brk_button"
             android:id="@+id/harsh_brk"
             android:layout_marginTop="30dip"
-            android:background="#FFFFFF"
             android:onClick="harshBrk" />
 
         <Button
@@ -223,7 +218,6 @@
             android:text="@string/turn_button"
             android:id="@+id/harsh_turn"
             android:layout_marginTop="30dip"
-            android:background="#FFFFFF"
             android:onClick="harshTurn"/>
 
     </RelativeLayout>

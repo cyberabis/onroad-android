@@ -16,6 +16,7 @@ import android.speech.SpeechRecognizer;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -25,6 +26,7 @@ import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.util.Log;
 import android.widget.TextView;
+import android.widget.Toast;
 import android.widget.ToggleButton;
 
 import com.google.gson.Gson;
@@ -460,6 +462,9 @@ public class ControlActivity extends ActionBarActivity implements RecognitionLis
                 String json = gson.toJson(te);
                 trainingFileOS.write(json.getBytes());
                 trainingFileOS.write("\n".getBytes());
+                Toast toast = Toast.makeText(this, data + " recorded", Toast.LENGTH_SHORT);
+                //toast.setGravity(Gravity.TOP, 0, 100);
+                toast.show();
             } catch (Exception e) {
                 Log.e(LOG_TAG, "Error while writing training file: " + e);
             }
