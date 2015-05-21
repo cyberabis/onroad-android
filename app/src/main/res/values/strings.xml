@@ -44,6 +44,7 @@
     <string name="voice_match_none">None</string>
     <string name="speech_connection_alert">Unable to connect to server for speech recognition</string>
     <string name="training">Training Start / Stop</string>
+    <string name="training_not_started_alert">Training mode should be started first.</string>
 </resources>
 
 

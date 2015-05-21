@@ -13,6 +13,7 @@ import com.amazonaws.mobileconnectors.s3.transfermanager.Upload;
 import com.amazonaws.regions.Regions;
 
 import java.io.File;
+import java.io.FilenameFilter;
 
 
 public class DataUploadIntentService extends IntentService {
@@ -43,8 +44,14 @@ public class DataUploadIntentService extends IntentService {
         } else {
             directory = getFilesDir();
         }
-        if(directory.exists())
-            files = directory.listFiles();
+        if(directory.exists()) {
+            files = directory.listFiles(new FilenameFilter() {
+                @Override
+                public boolean accept(File dir, String name) {
+                    return name.toLowerCase().endsWith(".zip");
+                }
+            });
+        }
         if (files != null) {
             Log.i(LOG_TAG, "No. of files to upload: " + files.length);
             for(int i=0; i<files.length; i++) {

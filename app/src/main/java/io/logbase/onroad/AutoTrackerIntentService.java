@@ -499,7 +499,7 @@ public class AutoTrackerIntentService extends IntentService implements
                 sumSpeed = sumSpeed + speeds.get(time);
             avgSpeed = sumSpeed / speeds.size();
         }
-        if(timeElapsed > NOT_MOVING_ELAPSE_MILLIS) {
+        if(timeElapsed > NOT_MOVING_ELAPSE_MILLIS * 2) {
             if(LOG_ENABLED)
                 Log.i(LOG_TAG, "Not moving, location unchanged.");
             return false;

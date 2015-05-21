@@ -31,4 +31,6 @@ public final class Constants {
 
     public static final String MAGNETIC_FIELD_EVENT_TYPE = "magnetic_field";
 
+    public static final String TRAINING_EVENT_TYPE = "training";
+
 }

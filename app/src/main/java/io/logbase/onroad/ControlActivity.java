@@ -9,6 +9,7 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.os.Environment;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
@@ -19,20 +20,26 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.WindowManager;
-import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.util.Log;
-import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.ToggleButton;
 
+import com.google.gson.Gson;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+
+import io.logbase.onroad.models.MagneticFieldEvent;
+import io.logbase.onroad.models.TrainingEvent;
+import io.logbase.onroad.utils.ZipUtils;
 
 
 public class ControlActivity extends ActionBarActivity implements RecognitionListener {
@@ -44,6 +51,9 @@ public class ControlActivity extends ActionBarActivity implements RecognitionLis
     private Intent recognizerIntent;
     private static final int SPEECH_REC_SLEEP = 1000;
     private String trainingFileName = null;
+    private File trainingFile = null;
+    private FileOutputStream trainingFileOS = null;
+    private String userId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -62,6 +72,7 @@ public class ControlActivity extends ActionBarActivity implements RecognitionLis
         String tripToggleMode = sharedPref.getString(getString(R.string.toggle_trip_mode_key), null);
         String autoToggleMode = sharedPref.getString(getString(R.string.toggle_auto_mode_key), null);
         String uploadStatus = sharedPref.getString(getString(R.string.upload_status_key), null);
+        userId = sharedPref.getString(getString(R.string.username_key), null);
 
         if ((tripToggleMode != null) && (tripToggleMode.equals(getString(R.string.toggle_trip_stop_button)))) {
             //implies data logging is in progress
@@ -93,21 +104,44 @@ public class ControlActivity extends ActionBarActivity implements RecognitionLis
             @Override
             public void onCheckedChanged(CompoundButton buttonView,
                                          boolean isChecked) {
-                //TODO
                 if (isChecked) {
                     //Create a new training file
-                    SharedPreferences sharedPref = getSharedPreferences(getString(R.string.pref_file_key),
-                            Context.MODE_PRIVATE);
-                    String userId = sharedPref.getString(getString(R.string.username_key), null);
                     trainingFileName = userId + "_training_";
                     SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd_HHmmss");
                     String timestamp = sdf.format(new Date());
                     trainingFileName = trainingFileName + timestamp;
                     Log.i(LOG_TAG, "Training file name: " + trainingFileName);
+                    try {
+                        if(isExternalStorageWritable()){
+                            trainingFile = getStorageFile(trainingFileName);
+                        } else {
+                            trainingFile = new File(getFilesDir(), trainingFileName);
+                        }
+                        if (trainingFile != null) {
+                            trainingFileOS = new FileOutputStream(trainingFile);
+                        }
+                    } catch (Exception e) {
+                        trainingFileName = null;
+                        Log.e(LOG_TAG, "Error opening file: " + e);
+                        toggleTraining.setChecked(false);
+                    }
                 } else {
                     //Save and zip the file
+                    Log.i(LOG_TAG, "Training file name reset to null from: " + trainingFileName);
+                    //Close outputstream
+                    if(trainingFileOS != null) {
+                        String filePath = trainingFile.getPath();
+                        Log.i(LOG_TAG, "Wrote training file of space: " + trainingFile.length() + " for: " + filePath);
+                        try {
+                            ZipUtils.zipFile(trainingFile, filePath + ".zip");
+                            trainingFile.delete();
+                            trainingFileOS.close();
+                        } catch (Exception e) {
+                            Log.e(LOG_TAG, "Error closing file: " + e);
+                        }
+                        trainingFileOS = null;
+                    }
                     trainingFileName = null;
-                    Log.i(LOG_TAG, "Training file name reset to null");
                 }
             }
         });
@@ -131,14 +165,31 @@ public class ControlActivity extends ActionBarActivity implements RecognitionLis
             public void onCheckedChanged(CompoundButton buttonView,
                                          boolean isChecked) {
                 if (isChecked) {
-                    speech.startListening(recognizerIntent);
-                    getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                    if(trainingFileOS != null) {
+                        speech.startListening(recognizerIntent);
+                        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                    } else {
+                        alertForTrainingMode();
+                        toggleSpeechRec.setChecked(false);
+                    }
                 } else {
                     speech.stopListening();
                     getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
                 }
             }
         });
+    }
+
+    private void alertForTrainingMode() {
+        AlertDialog.Builder alertDialog = new AlertDialog.Builder(ControlActivity.this);
+        alertDialog.setTitle(getString(R.string.app_name));
+        alertDialog.setMessage(getString(R.string.training_not_started_alert));
+        alertDialog.setNeutralButton("OK", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int which) {
+                // Do nothing
+            }
+        });
+        alertDialog.show();
     }
 
     @Override
@@ -182,6 +233,21 @@ public class ControlActivity extends ActionBarActivity implements RecognitionLis
             editor.remove(getString(R.string.toggle_auto_mode_key));
         if(uploadStatus != null)
             editor.remove(getString(R.string.upload_status_key));
+
+        //If training file is open, then zip it and close
+        if(trainingFileOS != null) {
+            String filePath = trainingFile.getPath();
+            Log.i(LOG_TAG, "Wrote training file of space: " + trainingFile.length() + " for: " + filePath);
+            try {
+                ZipUtils.zipFile(trainingFile, filePath + ".zip");
+                trainingFile.delete();
+                trainingFileOS.close();
+            } catch (Exception e) {
+                Log.e(LOG_TAG, "Error closing file: " + e);
+            }
+            trainingFileOS = null;
+        }
+        trainingFileName = null;
     }
 
     public void toggleTrip(View view) {
@@ -366,31 +432,40 @@ public class ControlActivity extends ActionBarActivity implements RecognitionLis
     }
 
     public void speedBump(View view) {
-        //TODO
-        SharedPreferences sharedPref = this.getSharedPreferences(getString(R.string.pref_file_key),
-                Context.MODE_PRIVATE);
-        String tripMode = sharedPref.getString(getString(R.string.toggle_trip_mode_key), null);
-        if( (tripMode != null) && (tripMode.equals(getString(R.string.toggle_trip_stop_button))) ) {
-
-        } else {
-            Log.i(LOG_TAG, "Cannot start auto as trip is not running");
-        }
+        writeToTrainingFile("speed_bump");
     }
 
     public void pothole(View view) {
-        //TODO
+        writeToTrainingFile("pothole");
     }
 
     public void harshAcc(View view) {
-        //TODO
+        writeToTrainingFile("harsh_acceleration");
     }
 
     public void harshBrk(View view) {
-        //TODO
+        writeToTrainingFile("harsh_braking");
     }
 
     public void harshTurn(View view) {
-        //TODO
+        writeToTrainingFile("harsh_turn");
+    }
+
+    private void writeToTrainingFile (String data) {
+        if(trainingFileOS != null) {
+            try {
+                long ts = new Date().getTime();
+                TrainingEvent te = new TrainingEvent(Constants.TRAINING_EVENT_TYPE, ts, userId, null, data);
+                Gson gson = new Gson();
+                String json = gson.toJson(te);
+                trainingFileOS.write(json.getBytes());
+                trainingFileOS.write("\n".getBytes());
+            } catch (Exception e) {
+                Log.e(LOG_TAG, "Error while writing training file: " + e);
+            }
+        } else {
+            alertForTrainingMode();
+        }
     }
 
     //For Speech recognition:
@@ -462,7 +537,6 @@ public class ControlActivity extends ActionBarActivity implements RecognitionLis
             Log.e(LOG_TAG, "Interrupted while sleeping : " + e);
         }
         toggleSpeechRec.setChecked(true);
-
     }
 
     private void checkVoiceMatch(List<String> matches) {
@@ -473,6 +547,7 @@ public class ControlActivity extends ActionBarActivity implements RecognitionLis
             for(String p: pothole) {
                 if(s.equals(p)) {
                     match = "pothole";
+                    pothole(null);
                     break;
                 }
             }
@@ -486,6 +561,7 @@ public class ControlActivity extends ActionBarActivity implements RecognitionLis
                 for(String b: speedBump) {
                     if(s.equals(b)) {
                         match = "speed bump";
+                        speedBump(null);
                         break;
                     }
                 }
@@ -500,6 +576,7 @@ public class ControlActivity extends ActionBarActivity implements RecognitionLis
                 for(String a: acceleration) {
                     if(s.equals(a)) {
                         match = "acceleration";
+                        harshAcc(null);
                         break;
                     }
                 }
@@ -514,6 +591,7 @@ public class ControlActivity extends ActionBarActivity implements RecognitionLis
                 for(String b: braking) {
                     if(s.equals(b)) {
                         match = "braking";
+                        harshBrk(null);
                         break;
                     }
                 }
@@ -528,6 +606,7 @@ public class ControlActivity extends ActionBarActivity implements RecognitionLis
                 for(String t: turn) {
                     if(s.equals(t)) {
                         match = "turn";
+                        harshTurn(null);
                         break;
                     }
                 }
@@ -535,9 +614,7 @@ public class ControlActivity extends ActionBarActivity implements RecognitionLis
                     break;
             }
         }
-        //TODO
         if(match != null) {
-            //Log the training event
             //Display the match
             Log.i(LOG_TAG, "Matched training command: " + match);
             TextView voiceMatch = (TextView) findViewById(R.id.voice_match);
@@ -592,4 +669,30 @@ public class ControlActivity extends ActionBarActivity implements RecognitionLis
         return message;
     }
 
+    private boolean isExternalStorageWritable() {
+        String state = Environment.getExternalStorageState();
+        if (Environment.MEDIA_MOUNTED.equals(state)) {
+            return true;
+        }
+        return false;
+    }
+
+    private File getStorageFile(String name) {
+        File file = new File(getExternalFilesDir(
+                Environment.DIRECTORY_DOCUMENTS), name);
+        boolean isFileCreated = false;
+        try {
+            if (file.createNewFile())
+                isFileCreated = true;
+            else {
+                Log.e(LOG_TAG, "Directory not created");
+            }
+        } catch (IOException e) {
+            Log.e(LOG_TAG, "Exception while creating file");
+        }
+        if (isFileCreated)
+            return file;
+        else
+            return null;
+    }
 }
