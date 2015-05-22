@@ -547,7 +547,7 @@ public class ControlActivity extends ActionBarActivity implements RecognitionLis
     private void checkVoiceMatch(List<String> matches) {
         String match = null;
         //Pothole
-        List<String> pothole = Arrays.asList("pothole");
+        List<String> pothole = Arrays.asList("pothole", "petrol");
         for(String s: matches){
             for(String p: pothole) {
                 if(s.equals(p)) {
@@ -606,7 +606,7 @@ public class ControlActivity extends ActionBarActivity implements RecognitionLis
         }
         //Turn
         if(match == null) {
-            List<String> turn = Arrays.asList("turn");
+            List<String> turn = Arrays.asList("turn", "curve");
             for(String s: matches){
                 for(String t: turn) {
                     if(s.equals(t)) {
