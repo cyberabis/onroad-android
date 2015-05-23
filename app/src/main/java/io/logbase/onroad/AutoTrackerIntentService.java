@@ -10,6 +10,7 @@ import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.location.Location;
 import android.location.LocationManager;
+import android.location.LocationProvider;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
@@ -382,7 +383,8 @@ public class AutoTrackerIntentService extends IntentService implements
                     double lon = lastLocation.getLongitude();
                     long ts = lastLocationTime;
                     double speed = lastLocation.getSpeed();
-                    LocationEvent le = new LocationEvent(Constants.LOCATION_EVENT_TYPE, ts, userId, tripName, lat, lon, speed);
+                    double accuracy = lastLocation.getAccuracy();
+                    LocationEvent le = new LocationEvent(Constants.LOCATION_EVENT_TYPE, ts, userId, tripName, lat, lon, speed, accuracy);
                     Gson gson = new Gson();
                     String json = gson.toJson(le);
                     writeToFile(json);
@@ -649,9 +651,11 @@ public class AutoTrackerIntentService extends IntentService implements
         double lon = location.getLongitude();
         //long ts = location.getTime();
         double speed = location.getSpeed();
+        double accuracy = location.getAccuracy();
         long ts = new Date().getTime();
+
         if(!FIXED_FREQ_WRITE) {
-            LocationEvent le = new LocationEvent(Constants.LOCATION_EVENT_TYPE, ts, userId, tripName, lat, lon, speed);
+            LocationEvent le = new LocationEvent(Constants.LOCATION_EVENT_TYPE, ts, userId, tripName, lat, lon, speed, accuracy);
             Gson gson = new Gson();
             String json = gson.toJson(le);
             writeToFile(json);

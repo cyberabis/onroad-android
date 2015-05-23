@@ -8,12 +8,14 @@ public class LocationEvent extends Event {
     private Double latitude;
     private Double longitude;
     private Double speed;
+    private Double accuracy;
 
-    public LocationEvent(String type, Long timestamp, String userId, String tripName, Double latitude, Double longitude, Double speed) {
+    public LocationEvent(String type, Long timestamp, String userId, String tripName, Double latitude, Double longitude, Double speed, Double accuracy) {
         super(type, timestamp, userId, tripName);
         this.latitude = latitude;
         this.longitude = longitude;
         this.speed = speed;
+        this.accuracy = accuracy;
     }
 
     public Double getLatitude() {
@@ -40,4 +42,11 @@ public class LocationEvent extends Event {
         this.speed = speed;
     }
 
+    public Double getAccuracy() {
+        return accuracy;
+    }
+
+    public void setAccuracy(Double accuracy) {
+        this.accuracy = accuracy;
+    }
 }

@@ -153,7 +153,8 @@ public class TripTrackerIntentService extends IntentService implements
                         double lon = lastLocation.getLongitude();
                         long ts = lastLocationTime;
                         double speed = lastLocation.getSpeed();
-                        LocationEvent le = new LocationEvent(Constants.LOCATION_EVENT_TYPE, ts, userId, tripName, lat, lon, speed);
+                        double accuracy = lastLocation.getAccuracy();
+                        LocationEvent le = new LocationEvent(Constants.LOCATION_EVENT_TYPE, ts, userId, tripName, lat, lon, speed, accuracy);
                         Gson gson = new Gson();
                         String json = gson.toJson(le);
                         writeToFile(json);
@@ -380,9 +381,10 @@ public class TripTrackerIntentService extends IntentService implements
         double lon = location.getLongitude();
         //long ts = location.getTime();
         double speed = location.getSpeed();
+        double accuracy = location.getAccuracy();
         long ts = (new Date()).getTime();
         if(!FIXED_FREQ_WRITE) {
-            LocationEvent le = new LocationEvent(Constants.LOCATION_EVENT_TYPE, ts, userId, tripName, lat, lon, speed);
+            LocationEvent le = new LocationEvent(Constants.LOCATION_EVENT_TYPE, ts, userId, tripName, lat, lon, speed, accuracy);
             Gson gson = new Gson();
             String json = gson.toJson(le);
             writeToFile(json);
@@ -393,7 +395,8 @@ public class TripTrackerIntentService extends IntentService implements
     }
 
     private void writeToFile(String data){
-        Log.i(LOG_TAG, "Going to write: " + data);
+        //
+        // Log.i(LOG_TAG, "Going to write: " + data);
         if(outputStream != null) {
             try {
                 outputStream.write(data.getBytes());
